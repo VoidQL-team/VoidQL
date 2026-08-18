@@ -10,7 +10,7 @@ OrbitQL is a policy-driven SQL handler for TypeScript backends. It brings role-b
 Instead of scattering authorization checks across controllers, services, and query handlers, OrbitQL evaluates the user, the requested operation, the existing data, and the incoming payload in one place—then applies the resulting constraints while building parameterized SQL operations.
 
 
-[Try the Demo](https://orbitql.dev/) · [Explore the Wiki](../../wiki)
+[Try the Demo](https://demo.orbitql.dev/) · [Explore the Wiki](../../wiki)
 
 </div>
 
@@ -439,7 +439,7 @@ Use the playground to:
 - Preview the generated SQL
 - Inspect allowed and denied operations
 
-**[Open the Interactive Playground →](https://orbitql.dev/)**
+**[Open the Interactive Playground →](https://demo.orbitql.dev/)**
 
 ## ⚙️ Architecture
 
