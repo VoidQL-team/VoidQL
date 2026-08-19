@@ -1,5 +1,5 @@
 {
-  "name": "@orbitql/core",
+  "name": "@voidql/core",
   "version": "0.9.0",
   "description": "A flexible backend API engine for building structured queries, joins, aggregations, and conditional logic using a declarative configuration model. Designed as a lightweight alternative to GraphQL, it enables controlled data access, dynamic grouping, and analytics-ready responses.",
   "type": "module",
@@ -25,7 +25,7 @@
 
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/OrbitQL-team/OrbitQL.git"
+    "url": "git+https://github.com/VoidQL-team/VoidQL.git"
   },
 
   "keywords": [
@@ -59,15 +59,15 @@
 		"sql",
 		"typescript",
 		"ts",
-    "orbit",
-    "orbitql"
+    "void",
+    "voidql"
   ],
 
-  "author": "OrbitQL team",
+  "author": "VoidQL team",
   "license": "MIT",
 
   "bugs": {
-    "url": "https://github.com/OrbitQL-team/OrbitQL/issues"
+    "url": "https://github.com/VoidQL-team/VoidQL/issues"
   },
 
   "files": [
@@ -76,7 +76,7 @@
     "LICENSE"
   ],
 
-  "homepage": "https://github.com/OrbitQL-team/OrbitQL#readme",
+  "homepage": "https://github.com/VoidQL-team/VoidQL#readme",
 
   "dependencies": {
     "drizzle-orm": "^1.0.0-beta.22"
