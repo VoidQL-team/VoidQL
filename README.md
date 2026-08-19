@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="./orbitql-header-original.png"
+  <img src="./voidql-header-original.png"
        alt="VoidQL — Centralize authorization. Enforce it through SQL."
        width="100%" />
 </div>
@@ -10,7 +10,7 @@ VoidQL is a policy-driven SQL handler for TypeScript backends. It brings role-ba
 Instead of scattering authorization checks across controllers, services, and query handlers, VoidQL evaluates the user, the requested operation, the existing data, and the incoming payload in one place—then applies the resulting constraints while building parameterized SQL operations.
 
 
-[Try the Demo](https://demo.orbitql.dev/) · [Explore the Wiki](../../wiki)
+[Try the Demo](https://demo.voidql.dev/) · [Explore the Wiki](../../wiki)
 
 </div>
 
@@ -19,7 +19,7 @@ Instead of scattering authorization checks across controllers, services, and que
 Install VoidQL using npm:
 
 ```bash
-npm install @orbitql/core
+npm install @voidql/core
 ```
 
 ## 🪐 Why VoidQL?
@@ -439,12 +439,12 @@ Use the playground to:
 - Preview the generated SQL
 - Inspect allowed and denied operations
 
-**[Open the Interactive Playground →](https://demo.orbitql.dev/)**
+**[Open the Interactive Playground →](https://demo.voidql.dev/)**
 
 ## ⚙️ Architecture
 
 <div align="center">
-  <img src="orbitql-flow.svg" alt="Structured API request flows through the policy handler and SQL query builder to the database" width="100%" />
+  <img src="voidql-flow.svg" alt="Structured API request flows through the policy handler and SQL query builder to the database" width="100%" />
 </div>
 
 The handler:
