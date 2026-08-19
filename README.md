@@ -1,13 +1,13 @@
 <div align="center">
   <img src="./orbitql-header-original.png"
-       alt="OrbitQL — Centralize authorization. Enforce it through SQL."
+       alt="VoidQL — Centralize authorization. Enforce it through SQL."
        width="100%" />
 </div>
 
 <div align="center">
-OrbitQL is a policy-driven SQL handler for TypeScript backends. It brings role-based access, row and field permissions, payload validation, and workflow rules into one declarative policy layer.
+VoidQL is a policy-driven SQL handler for TypeScript backends. It brings role-based access, row and field permissions, payload validation, and workflow rules into one declarative policy layer.
 
-Instead of scattering authorization checks across controllers, services, and query handlers, OrbitQL evaluates the user, the requested operation, the existing data, and the incoming payload in one place—then applies the resulting constraints while building parameterized SQL operations.
+Instead of scattering authorization checks across controllers, services, and query handlers, VoidQL evaluates the user, the requested operation, the existing data, and the incoming payload in one place—then applies the resulting constraints while building parameterized SQL operations.
 
 
 [Try the Demo](https://demo.orbitql.dev/) · [Explore the Wiki](../../wiki)
@@ -16,23 +16,23 @@ Instead of scattering authorization checks across controllers, services, and que
 
 ## 🚀 Get Started
 
-Install OrbitQL using npm:
+Install VoidQL using npm:
 
 ```bash
 npm install @orbitql/core
 ```
 
-## 🪐 Why OrbitQL?
+## 🪐 Why VoidQL?
 
 Authorization rarely remains a simple question of whether a user has a particular role. As applications grow, access decisions begin to depend on the operation, the records and fields involved, the existing data, the incoming payload, and the requested state transition.
 
 These rules are often scattered across middleware, controllers, services, validators, and individual queries. Over time, they become duplicated, difficult to trace, and inconsistent with the database operations they are intended to protect.
 
-OrbitQL centralizes complex authorization in one declarative policy layer and applies those policies while building the corresponding SQL operation. This keeps authorization logic consistent, maintainable, and directly connected to the data operation that ultimately executes.
+VoidQL centralizes complex authorization in one declarative policy layer and applies those policies while building the corresponding SQL operation. This keeps authorization logic consistent, maintainable, and directly connected to the data operation that ultimately executes.
 
 ## ✦ Key Features
 
-OrbitQL centralizes authorization rules and applies them while building SQL operations. Its features cover the full flow—from determining whether an operation is permitted to controlling the query, validating the payload, and managing what happens before and after execution.
+VoidQL centralizes authorization rules and applies them while building SQL operations. Its features cover the full flow—from determining whether an operation is permitted to controlling the query, validating the payload, and managing what happens before and after execution.
 
 | Feature | What it provides |
 | --- | --- |
@@ -112,7 +112,7 @@ This enables rules such as:
 
 Control whether a requested state change is valid before building the corresponding SQL operation.
 
-OrbitQL can evaluate:
+VoidQL can evaluate:
 
 - Existing row values
 - Incoming mutation payload
@@ -148,7 +148,7 @@ Build SQL operations from structured query definitions:
 }
 ```
 
-OrbitQL generates the corresponding SQL:
+VoidQL generates the corresponding SQL:
 
 ```sql
 SELECT orders.*, users.email
@@ -197,7 +197,7 @@ This prevents unauthorized fields from being read or submitted while allowing di
 
 ## ⚖️ Comparison with Other Approaches
 
-OrbitQL combines authorization, payload validation, workflow rules, and SQL construction within the same declarative flow.
+VoidQL combines authorization, payload validation, workflow rules, and SQL construction within the same declarative flow.
 
 - Unlike **application-level checks**, it centralizes policies instead of distributing them across middleware, controllers, and services.
 - Unlike **database-native RLS**, it works directly with application context, incoming payloads, and structured query definitions.
@@ -205,7 +205,7 @@ OrbitQL combines authorization, payload validation, workflow rules, and SQL cons
 
 ### Comparison with GraphQL Engines
 
-| Capability | OrbitQL | Typical GraphQL Engine |
+| Capability | VoidQL | Typical GraphQL Engine |
 | --- | --- | --- |
 | **Payload-aware rules** | ✅ Rules can directly evaluate the incoming payload | ❌ Not supported as part of the standard permission model |
 | **State transition checks** | ✅ Validates changes by comparing existing and proposed values | ❌ Usually requires additional application logic |
@@ -216,7 +216,7 @@ OrbitQL combines authorization, payload validation, workflow rules, and SQL cons
 
 ## 🎯 Use Cases
 
-OrbitQL is a good fit for TypeScript backends where authorization depends on roles, data, incoming payloads, or workflow state.
+VoidQL is a good fit for TypeScript backends where authorization depends on roles, data, incoming payloads, or workflow state.
 
 Common use cases include:
 
@@ -227,11 +227,11 @@ Common use cases include:
 - **User-owned resources** — Limit users to their own data while allowing broader administrator access
 - **Dynamic data APIs** — Build authorized SQL operations with joins, filters, ordering, and grouping
 
-## 🚀 OrbitQL in Action
+## 🚀 VoidQL in Action
 
 ### Request Structure
 
-OrbitQL accepts a `Request` object that describes the database operation or sequence of operations to execute.
+VoidQL accepts a `Request` object that describes the database operation or sequence of operations to execute.
 
 #### Request type
 
@@ -301,7 +301,7 @@ or a more complex `WhereCondition`.
 
 #### Where condition types
 
-OrbitQL supports rich condition expressions.
+VoidQL supports rich condition expressions.
 
 ##### Simple conditions
 
@@ -429,7 +429,7 @@ Supported operators include:
 
 ## 🧪 Interactive Playground
 
-Experiment with OrbitQL directly in your browser.
+Experiment with VoidQL directly in your browser.
 
 Use the playground to:
 
@@ -458,16 +458,16 @@ The handler:
 
 ## 🔒 Security Model
 
-- Database operations handled by OrbitQL are compiled through policy rules.
+- Database operations handled by VoidQL are compiled through policy rules.
 - Field access is explicitly controlled.
 - Row filters are injected at SQL level.
 - Payload comparisons enforce configured state-transition rules.
 
-Security relies on all database access going through the OrbitQL handler, with no raw SQL or direct database access bypass routes.
+Security relies on all database access going through the VoidQL handler, with no raw SQL or direct database access bypass routes.
 
 ## 🗺️ Project Status and Roadmap
 
-OrbitQL is currently under active development.
+VoidQL is currently under active development.
 
 - **Runtime:** `[supported runtime]`
 - **Language:** TypeScript
@@ -475,11 +475,11 @@ OrbitQL is currently under active development.
 - **Integration:** Designed for existing TypeScript backends
 - **Status:** Experimental — APIs and configuration may change before a stable release
 
-OrbitQL currently supports policy-driven SQL generation, role- and field-level permissions, payload-aware validation, workflow rules, dynamic joins, triggers, and bulk operations.
+VoidQL currently supports policy-driven SQL generation, role- and field-level permissions, payload-aware validation, workflow rules, dynamic joins, triggers, and bulk operations.
 
 ### Future Direction
 
-OrbitQL will evolve into a SaaS platform with:
+VoidQL will evolve into a SaaS platform with:
 
 - Policy management interface
 - API integration tooling
@@ -493,7 +493,7 @@ The planned subscription model includes:
 - Developer plans for startups and indie builders
 - Advanced plans for production SaaS applications
 
-**Open-source code:** OrbitQL is fully open source and self-hostable. Users may modify and host the project freely.
+**Open-source code:** VoidQL is fully open source and self-hostable. Users may modify and host the project freely.
 
 ### Current Limitations
 
@@ -501,7 +501,7 @@ The planned subscription model includes:
 
 ## 📚 Documentation and Wiki
 
-For detailed guides, configuration references, and advanced examples, visit the [OrbitQL Wiki](../../wiki).
+For detailed guides, configuration references, and advanced examples, visit the [VoidQL Wiki](../../wiki).
 
 The documentation includes:
 
@@ -521,7 +521,7 @@ We welcome feedback on:
 - Real-world use cases
 - Missing features and improvement ideas
 
-Share your feedback through [GitHub Discussions](../../discussions) or report issues through [GitHub Issues](../../issues). Your input will help shape OrbitQL's future development.
+Share your feedback through [GitHub Discussions](../../discussions) or report issues through [GitHub Issues](../../issues). Your input will help shape VoidQL's future development.
 
 ## 👥 Who We Are
 
@@ -534,4 +534,4 @@ Together, we aim to simplify complex backend challenges by building solutions th
 
 ## 📄 License
 
-OrbitQL is released under the [MIT License](LICENSE). It is fully open source and may be used, modified, and self-hosted in accordance with the license terms.
+VoidQL is released under the [MIT License](LICENSE). It is fully open source and may be used, modified, and self-hosted in accordance with the license terms.
