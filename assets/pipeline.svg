@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="330" viewBox="0 0 1200 330" role="img" aria-labelledby="title desc">
+  <title id="title">How VoidQL works</title>
+  <desc id="desc">Structured API request flows through the policy handler and SQL query builder to the database.</desc>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0 0 10 5 0 10Z" fill="#bdbdbd"/>
+    </marker>
+    <radialGradient id="orb" cx="50%" cy="42%" r="58%"><stop offset="0" stop-color="#21262d"/><stop offset="1" stop-color="#0d1117"/></radialGradient>
+  </defs>
+  <rect width="1200" height="330" rx="22" fill="#0d1117"/>
+  <circle cx="1095" cy="30" r="165" fill="url(#orb)" stroke="#30363d"/>
+  <circle cx="81" cy="52" r="1.5" fill="#fff" opacity=".65"/><circle cx="1143" cy="267" r="1.5" fill="#fff" opacity=".5"/>
+  <text x="60" y="60" fill="#fff" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="28" font-weight="700">How VoidQL works</text>
+  <text x="60" y="89" fill="#8b949e" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="15">Authorization stays connected to the SQL operation that executes.</text>
+  <g font-family="Inter,Segoe UI,Arial,sans-serif">
+    <g transform="translate(35 132)"><rect width="250" height="125" rx="14" fill="#161b22" stroke="#30363d"/><text x="22" y="36" fill="#8b949e" font-size="13" font-weight="700">01</text><text x="22" y="69" fill="#fff" font-size="17" font-weight="700">Structured API request</text><text x="22" y="96" fill="#8b949e" font-size="14">Operation, fields, data</text></g>
+    <g transform="translate(315 132)"><rect width="250" height="125" rx="14" fill="#161b22" stroke="#30363d"/><text x="22" y="36" fill="#8b949e" font-size="13" font-weight="700">02</text><text x="22" y="69" fill="#fff" font-size="19" font-weight="700">Policy handler</text><text x="22" y="96" fill="#8b949e" font-size="14">Roles, rows, payload</text></g>
+    <g transform="translate(595 132)"><rect width="250" height="125" rx="14" fill="#161b22" stroke="#30363d"/><text x="22" y="36" fill="#8b949e" font-size="13" font-weight="700">03</text><text x="22" y="69" fill="#fff" font-size="18" font-weight="700">SQL query builder</text><text x="22" y="96" fill="#8b949e" font-size="13">Validated, parameterized SQL</text></g>
+    <g transform="translate(875 132)"><rect width="250" height="125" rx="14" fill="#161b22" stroke="#30363d"/><text x="22" y="36" fill="#8b949e" font-size="13" font-weight="700">04</text><text x="22" y="69" fill="#fff" font-size="19" font-weight="700">Database</text><text x="22" y="96" fill="#8b949e" font-size="14">Authorized execution</text></g>
+  </g>
+  <g stroke="#bdbdbd" stroke-width="2" fill="none" marker-end="url(#arrow)"><path d="M291 194h13"/><path d="M571 194h13"/><path d="M851 194h13"/></g>
+  <image href="voidql-logo-original.png" x="1028" y="278" width="48" height="28" preserveAspectRatio="xMidYMid meet"/>
+</svg>
