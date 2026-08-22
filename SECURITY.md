@@ -2,4 +2,4 @@
 
 ## Reporting a Vulnerability
 
-If you have a security issue to report, please contact us at [orbitql.team@gmail.com](mailto:orbitql.team@gmail.com).
+If you have a security issue to report, please contact us at [voidql.team@gmail.com](mailto:voidql.team@gmail.com).
