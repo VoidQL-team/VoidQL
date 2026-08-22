@@ -207,6 +207,33 @@ async function not_in_condition(db: Database | Transaction, left:any, right: any
   throw Error('Wrong values for not in condition')
 }
 
+function check_passed(cond: WhereCondition, value: any) {
+  if (typeof cond === 'boolean') return null
+
+  if (
+    cond &&
+    ('op' in cond || 'operator' in cond) &&
+    (is_op_type(cond, "IS PASSED") || is_op_type(cond, "IS NOT PASSED"))
+  ) {
+    const passed = value !== undefined
+
+    if (is_op_type(cond, "IS PASSED")) {
+      return sql`${passed}`
+    }
+
+    if (is_op_type(cond, "IS NOT PASSED")) {
+      return sql`${!passed}`
+    }
+  }
+
+  return null
+}
+
+function sanitize_undefined(value:any) {
+  if(value == undefined) return null
+  return value
+}
+
 /* -------------------------------------------------------------------------- */
 /*                                WHERE BUILDER                               */
 /* -------------------------------------------------------------------------- */
@@ -287,7 +314,10 @@ export async function buildWhere(db: Database | Transaction, cond: WhereConditio
   }
 
   if ("left_value" in cond) {
-    left = sql`${resolveCustomValue(cond.left_value, user, query, tableMap, default_table_name, custom_data)}`;
+    const left_value = resolveCustomValue(cond.left_value, user, query, tableMap, default_table_name, custom_data)
+    const passed = check_passed(cond, left_value)
+    if(passed != null) return passed
+    left = sql`${sanitize_undefined(left_value)}`;
   } else if ("field" in cond && cond.field) {
     let tbl, col;
     if(cond.field.includes(".")) {
@@ -300,19 +330,31 @@ export async function buildWhere(db: Database | Transaction, cond: WhereConditio
     if (!column) throw new Error(`Column '${cond.field}' not found`);
     left = column;
   } else if("value" in cond) {
-    left = sql`${resolveCustomValue(cond.value, user, query, tableMap, default_table_name, custom_data)}`;
+    const value = resolveCustomValue(cond.value, user, query, tableMap, default_table_name, custom_data)
+    const passed = check_passed(cond, value)
+    if(passed != null) return passed
+    left = sql`${sanitize_undefined(value)}`;
   } else {
     console.log(cond)
     throw new Error("Condition must have 'field' or 'left_value' or 'value");
   }
 
   if ("value" in cond) {
-    right = sql`${resolveCustomValue(cond.value, user, query, tableMap, default_table_name, custom_data)}`;
+    const right_value = resolveCustomValue(cond.value, user, query, tableMap, default_table_name, custom_data)
+    const passed = check_passed(cond, right_value)
+    if(passed != null) return passed
+    right = sql`${sanitize_undefined(right_value)}`;
   }
   
   if("start" in cond && "end" in cond && is_op_type(cond, "BETWEEN")) {
-    start = sql`${resolveCustomValue(cond.start, user, query, tableMap, default_table_name, custom_data)}`;
-    end = sql`${resolveCustomValue(cond.end, user, query, tableMap, default_table_name, custom_data)}`;
+    const start_value = resolveCustomValue(cond.start, user, query, tableMap, default_table_name, custom_data)
+    const start_passed = check_passed(cond, start_value)
+    if(start_passed != null) return start_passed
+    start = sql`${sanitize_undefined(start_value)}`;
+    const end_value = resolveCustomValue(cond.end, user, query, tableMap, default_table_name, custom_data)
+    const end_passed = check_passed(cond, end_value)
+    if(end_passed != null) return end_passed
+    end = sql`${sanitize_undefined(end_value)}`;
   } else if(("start" in cond || "end" in cond)) {
     throw new Error("'start' or 'end' fields must have a compatible operator");
   } else if(is_op_type(cond, "BETWEEN") && !("start" in cond && "end" in cond)) {

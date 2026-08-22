@@ -193,7 +193,7 @@ export type FieldPermission =
 /*                                  OPERATORS                                 */
 /* -------------------------------------------------------------------------- */
 
-export const SAFE_OPERATORS = [
+export const BASIC_OPERATORS = [
   "=",
   "!=",
   "<",
@@ -209,10 +209,12 @@ export const SAFE_OPERATORS = [
   "IS NULL",
   "IS NOT NULL",
   "IN",
-  "NOT IN"
+  "NOT IN",
+  "IS PASSED",
+  "IS NOT PASSED"
 ] as const;
 
-export type SafeOperator = typeof SAFE_OPERATORS[number];
+export type SafeOperator = typeof BASIC_OPERATORS[number];
 
 /* -------------------------------------------------------------------------- */
 /*                                   RESULT                                   */
