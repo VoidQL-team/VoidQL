@@ -1062,7 +1062,7 @@ export function resolveCustomValue(
     }
 
     // ------------------------
-    // $data.X / $before.X / $after.X
+    // $data.X / $before.X / $after.X / $result.X
     // ------------------------
     match = value.match(/^\$(data|before|after|result)\.(.+)$/);
 
@@ -1087,9 +1087,7 @@ export function resolveCustomValue(
 
         const resolved = resolvePath(source, key);
 
-        if (resolved !== undefined) {
-            return resolved;
-        }
+        return resolved;
 
         // Commented as not passed data but requested on RBAC can cause failed queries also if are correct
         // throw new Error(`match not found with passed value: ${value}`);
