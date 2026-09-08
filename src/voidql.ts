@@ -1,13 +1,38 @@
-import type {
-    Database,
-    Transaction,
-    Request,
-    StructuredQuery,
-    QueryPhase,
-    Structure,
+import { getTableName } from "drizzle-orm";
+
+import {
     BuildWhereOptions,
-    CompileResult
-} from "./types.ts";
+    CompileResult,
+    Database,
+    QueryPhase,
+    Request,
+    Structure,
+    StructuredQuery,
+    Transaction,
+    WhereCondition,
+} from "./types.js";
+
+import {
+    alias_selected_fields,
+    extractTableMap,
+    resolve_data,
+    resolve_fields,
+    stripPrefixes,
+    validate_where_fields,
+} from "./rbac.js";
+
+import {
+    buildAclWhere,
+    buildWhere,
+    delete_method,
+    get_method,
+    if_condition,
+    is_allowed_empty,
+    post_method,
+    put_method,
+    run_triggers,
+} from "./drizzle.js";
+import { Compiler } from "./compiler.js";
 
 export type VoidQLContext = {
     db: Database | Transaction;
@@ -39,13 +64,13 @@ export class VoidQL {
                     this.build_batch(phase)
                 )
             );
-        
+
             return {
                 async execute() {
                     const results = await Promise.all(
                         parts.map((part) => part.execute())
                     );
-            
+
                     return {
                         ok: results.every((r: any) => r.ok),
                         data: results
@@ -53,14 +78,14 @@ export class VoidQL {
                 }
             };
         }
-    
+
         const single = await this.build_query(request as StructuredQuery);
-    
+
         return {
             async execute() {
                 try {
                     const res = await single.execute();
-            
+
                     return {
                         ok: true,
                         data: res
@@ -75,15 +100,24 @@ export class VoidQL {
         };
     }
 
-    protected async build_query(
+    protected build_query(
         query: StructuredQuery,
-        db: Database | Transaction = this.db
+        db: Database | Transaction = this.db,
+        before_values?: any | any[],
+        after_values?: any | any[],
+        result_values?: any | any[]
     ) {
-        return {
-            execute: async (): Promise<any[]> => {
-                return [];
-            }
-        };
+        return new Compiler({
+            db,
+            user: this.user,
+            role: this.role,
+            structure: this.structure,
+            options: this.options,
+            query,
+            before_values,
+            after_values,
+            result_values,
+        });
     }
 
     protected async build_batch(phase: QueryPhase) {
