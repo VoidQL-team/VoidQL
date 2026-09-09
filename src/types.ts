@@ -1,10 +1,10 @@
 /* -------------------------------------------------------------------------- */
 /*                                   IMPORTS                                  */
 /* -------------------------------------------------------------------------- */
-import { GelDatabase, GelTransaction } from "drizzle-orm/gel-core";
+import { GelDatabase, GelTable, GelTransaction } from "drizzle-orm/gel-core";
 import { MySql2Database, MySql2Transaction } from "drizzle-orm/mysql2";
 import { PlanetScaleDatabase, PlanetScaleTransaction } from "drizzle-orm/planetscale-serverless";
-import { PgAsyncDatabase, PgAsyncTransaction } from "drizzle-orm/pg-core";
+import { PgAsyncDatabase, PgAsyncTransaction, PgTable } from "drizzle-orm/pg-core";
 import { NodePgDatabase, NodePgTransaction } from "drizzle-orm/node-postgres";
 import { VercelPgDatabase, VercelPgTransaction } from "drizzle-orm/vercel-postgres";
 import { LibSQLDatabase, LibSQLTransaction } from "drizzle-orm/libsql";
@@ -30,10 +30,10 @@ import { AwsDataApiPgDatabase, AwsDataApiTransaction } from "drizzle-orm/aws-dat
 import { PrismaMySqlDatabase } from "drizzle-orm/prisma/mysql";
 import { MySqlRemoteDatabase } from "drizzle-orm/mysql-proxy";
 import { PostgresJsDatabase, PostgresJsTransaction } from "drizzle-orm/postgres-js";
-import { BaseSQLiteDatabase } from "drizzle-orm/sqlite-core";
+import { BaseSQLiteDatabase, SQLiteTable } from "drizzle-orm/sqlite-core";
 import { ExpoSQLiteDatabase, ExpoSQLiteTransaction } from "drizzle-orm/expo-sqlite";
-import { MySqlDatabase, MySqlTransaction } from "drizzle-orm/mysql-core";
-import { SingleStoreTransaction } from "drizzle-orm/singlestore-core";
+import { MySqlDatabase, MySqlTable, MySqlTransaction } from "drizzle-orm/mysql-core";
+import { SingleStoreTable, SingleStoreTransaction } from "drizzle-orm/singlestore-core";
 
 /* -------------------------------------------------------------------------- */
 /*                               DATABASE TYPES                               */
@@ -95,6 +95,13 @@ export type Transaction =
   | PostgresJsTransaction<any, any, any>
   | ExpoSQLiteTransaction<any, any, any>
 
+export type Table =
+  | PgTable
+  | MySqlTable
+  | SingleStoreTable
+  | SQLiteTable
+  | GelTable;
+
 /* -------------------------------------------------------------------------- */
 /*                                  STRUCTURE                                 */
 /* -------------------------------------------------------------------------- */
@@ -103,7 +110,7 @@ export type Structure = Record<string, TableStructure>;
 
 export type TableStructure = {
   endpoints: Endpoint[];
-  table: any;
+  table: Table;
 };
 
 export const BuildWhereOptionsDefaults:BuildWhereOptions = {

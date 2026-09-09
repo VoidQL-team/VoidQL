@@ -4,10 +4,13 @@ import {
     BuildWhereOptions,
     CompileResult,
     Database,
+    FieldPermission,
     QueryPhase,
     Request,
+    RolePermissions,
     Structure,
     StructuredQuery,
+    Table,
     TableStructure,
     Transaction,
     WhereCondition,
@@ -43,23 +46,34 @@ export type CompilerContext = VoidQLContext & {
 };
 
 export class Compiler {
+    /* -------------------------------------------------------------------------- */
+    /*                                  DATABASE                                  */
+    /* -------------------------------------------------------------------------- */
     protected readonly db: Database | Transaction;
+    protected select?: Record<string, any> | Array<Record<string, any>>;
+    protected data?: Record<string, any> | Array<Record<string, any>>;
+    protected readonly table: Table;
+    protected readonly table_name: string;
+    protected where?: WhereCondition;
+    protected readonly limit: null | number;
     protected readonly user: any;
     protected readonly role: string;
     protected readonly structure: Structure;
     protected readonly options: BuildWhereOptions;
     protected readonly query: StructuredQuery;
-    protected readonly query_type : string;
-    protected readonly table_name: string;
+    protected readonly type : string;
     protected readonly table_structure: TableStructure;
-    private readonly before_values?: any | any[];
-    private readonly after_values?: any | any[];
-    private readonly result_values?: any | any[];
+    protected readonly role_permissions: RolePermissions;
+    protected readonly table_map: Record<string, any>;
+    protected readonly before_values?: any | any[];
+    protected readonly after_values?: any | any[];
+    protected readonly result_values?: any | any[];
 
     constructor(context: CompilerContext) {
         this.db = context.db;
         this.user = context.user;
         this.role = context.role;
+        this.limit = null
         this.structure = context.structure;
         this.options = context.options ?? {};
         this.query = context.query;
@@ -73,114 +87,63 @@ export class Compiler {
         this.table_structure = this.structure[this.query.table];
         if (!this.table_structure) throw new Error(`Table ${this.query.table} not found`);
 
-        this.query_type = this.query.type.toUpperCase()
+        this.type = this.query.type.toUpperCase()
 
         /* -------------------------------------------------------------------------- */
         /*                             ENDPOINT RETRIEVING                            */
         /* -------------------------------------------------------------------------- */
-        const endpoint = this.table_structure.endpoints.find((e: any) => e.type.toUpperCase() === this.query_type);
-        if (!endpoint) throw new Error(`${this.query_type} not allowed on ${this.query.table}`);
+        const endpoint = this.table_structure.endpoints.find((e: any) => e.type.toUpperCase() === this.type);
+        if (!endpoint) throw new Error(`${this.type} not allowed on ${this.query.table}`);
 
         if (!endpoint[this.role]) {
-            throw new Error(`Role '${this.role}' not allowed to perform ${this.query_type} on ${this.query.table}`);
+            throw new Error(`Role '${this.role}' not allowed to perform ${this.type} on ${this.query.table}`);
         }
 
         /* -------------------------------------------------------------------------- */
         /*                                    ROLES                                   */
         /* -------------------------------------------------------------------------- */
-        const rolePermissions = endpoint[this.role];
-        if (typeof rolePermissions === "string" || Array.isArray(rolePermissions)) {
+        this.role_permissions = endpoint[this.role];
+        if (typeof this.role_permissions === "string" || Array.isArray(this.role_permissions)) {
             throw new Error(`Invalid role permissions format for role '${this.role}'`);
         }
 
         const allowed =
-            'allowed' in rolePermissions
-                ? rolePermissions.allowed ?? []
-                : 'allow' in rolePermissions
-                    ? rolePermissions.allow ?? []
+            'allowed' in this.role_permissions
+                ? this.role_permissions.allowed ?? []
+                : 'allow' in this.role_permissions
+                    ? this.role_permissions.allow ?? []
                     : [];
 
         const disallowed =
-            'disallowed' in rolePermissions
-                ? rolePermissions.disallowed ?? []
-                : 'deny' in rolePermissions
-                    ? rolePermissions.deny ?? []
+            'disallowed' in this.role_permissions
+                ? this.role_permissions.disallowed ?? []
+                : 'deny' in this.role_permissions
+                    ? this.role_permissions.deny ?? []
                     : [];
 
         if (is_allowed_empty(allowed)) throw new Error("Not allowed");
+        
+        if (this.query.limit) this.limit = this.query.limit
+
+        if (this.role_permissions.limit && (this.limit === null || this.limit > this.role_permissions.limit)) {
+            this.limit = this.role_permissions.limit
+        }
 
         /* -------------------------------------------------------------------------- */
         /*               QUERY VALIDATION CHECK BEFORE RUNNING THE QUERY              */
         /* -------------------------------------------------------------------------- */
 
-        const tableMap = extractTableMap(this.structure);
+        this.table = this.table_structure.table
+        this.table_map = extractTableMap(this.structure);
+        this.table_name = getTableName(this.table)
 
-        const default_table = this.table_structure.table
-        this.table_name = getTableName(default_table)
-
-        const aclWhere = buildAclWhere(allowed, disallowed);
-
-        let combinedWhere: WhereCondition | undefined;
-        let query_where = this.query.where ? validate_where_fields(this.query.where, tableMap, this.table_name, this.structure, this.role, this.query_type) : this.query.where
-        if (query_where && aclWhere) {
-            combinedWhere = {
-                and: [aclWhere, query_where]
-            };
-        } else if (query_where) {
-            combinedWhere = query_where;
-        } else if (aclWhere) {
-            combinedWhere = aclWhere
-        }
-
-        if (combinedWhere && (typeof allowed != 'string' && !Array.isArray(allowed) || typeof disallowed != 'string' && !Array.isArray(disallowed))) {
-            const has_been_accepted = await if_condition(this.db, combinedWhere, tableMap, this.user, this.role, this.structure, this.query, default_table)
-            if (!has_been_accepted) throw new Error("Not allowed or Empty")
-        }
-
-        let limit = null
-        if (this.query.limit) limit = this.query.limit
-
-        if (rolePermissions.limit && (limit === null || limit > rolePermissions.limit)) {
-            limit = rolePermissions.limit
-        }
+        this.define_where(allowed, disallowed)
 
         /* -------------------------------------------------------------------------- */
         /*                           ALLOWED FIELDS RESOLVER                          */
         /* -------------------------------------------------------------------------- */
 
-        const built_where = combinedWhere ? await buildWhere(this.db, combinedWhere!, tableMap, this.user, this.role, this.structure, this.query, default_table, this.table_name, undefined, this.before_values, this.after_values, this.result_values) : false
-
-        let user_select_data_fields: Record<string, any> = {};
-
-        if (this.query_type == "GET") {
-            if ("select" in this.query && this.query.select) {
-                user_select_data_fields = resolve_fields(this.structure, this.query.select, this.query_type, this.role, this.query.table, tableMap);
-                user_select_data_fields = alias_selected_fields(user_select_data_fields);
-            } else throw Error("Select is necessary on GET request")
-        }
-        if (this.query_type == "DELETE") {
-            user_select_data_fields = resolve_fields(this.structure, "*", this.query_type, this.role, this.query.table, tableMap);
-            user_select_data_fields = alias_selected_fields(user_select_data_fields);
-        }
-        if (this.query_type == "PUT" || this.query_type == "POST") {
-            if ("data" in this.query && this.query.data) {
-                user_select_data_fields = resolve_data(this.structure, this.user, this.query, this.query.data, this.query_type, this.role, this.query.table, tableMap, this.before_values, this.after_values, this.result_values);
-                user_select_data_fields = stripPrefixes(user_select_data_fields);
-            } else throw Error("Data is necessary on PUT/POST requests")
-        }
-
-        let result: any
-
-        console.log(user_select_data_fields)
-
-        let selected_data_fields: Record<string, any> | Array<Record<string, any>> =
-            Array.isArray(user_select_data_fields)
-                ? [...user_select_data_fields]
-                : { ...user_select_data_fields };
-
-        if (!Object.keys(selected_data_fields).length) {
-            throw new Error("No allowed fields");
-        }
+        this.define_select_data()
 
         /* -------------------------------------------------------------------------- */
         /*                             TRIGGERS FILTERING                             */
@@ -200,7 +163,7 @@ export class Compiler {
 
         const has_after_triggers = !this.options?.disable_triggers ? (after_triggers != null ? after_triggers.length != 0 : false) : false
 
-        result = {
+        let result = {
             execute: async () => {
                 let before: any = null
                 let after: any = null
@@ -215,7 +178,7 @@ export class Compiler {
                     /*                               BEFORE TRIGGERS                              */
                     /* -------------------------------------------------------------------------- */
 
-                    if (before_triggers && !this.options?.disable_triggers) selected_data_fields = await run_triggers(tx, this.options, this.query, this.user, this.role, this.structure, tableMap, this.table_structure, user_select_data_fields, before_triggers, false)
+                    if (before_triggers && !this.options?.disable_triggers) this.data = await run_triggers(tx, this.options, this.query, this.user, this.role, this.structure, this.table_map, this.table_structure, this.data, before_triggers, false)
 
 
                     /* -------------------------------------------------------------------------- */
@@ -224,27 +187,27 @@ export class Compiler {
 
                     let result
 
-                    switch (this.query_type.toUpperCase()) {
+                    switch (this.type.toUpperCase()) {
                         case 'GET': {
-                            result = await get_method(tx, this.query, this.user, this.structure, rolePermissions, this.role, this.table_structure, tableMap, selected_data_fields, built_where, this.table_name, limit)
+                            result = await get_method(tx, this.query, this.user, this.structure, this.role_permissions, this.role, this.table_structure, this.table_map, this.select, this.where, this.table_name, this.limit)
                             break;
                         }
                         case 'PUT': {
-                            if (has_after_triggers) before = await get_method(tx, this.query, this.user, this.structure, rolePermissions, this.role, this.table_structure, tableMap, undefined, built_where, this.table_name, limit)
-                            const res = await put_method(tx, this.query, this.structure, rolePermissions, this.role, this.table_structure, tableMap, selected_data_fields, built_where, this.table_name, limit, has_after_triggers)
+                            if (has_after_triggers) before = await get_method(tx, this.query, this.user, this.structure, this.role_permissions, this.role, this.table_structure, this.table_map, undefined, this.where, this.table_name, this.limit)
+                            const res = await put_method(tx, this.query, this.structure, this.role_permissions, this.role, this.table_structure, this.table_map, this.data, this.where, this.table_name, this.limit, has_after_triggers)
                             result = res.result;
                             after = res.after;
                             break;
                         }
                         case 'POST': {
-                            const res = await post_method(tx, this.query, this.structure, this.role, this.table_structure, tableMap, selected_data_fields, this.table_name, has_after_triggers)
+                            const res = await post_method(tx, this.query, this.structure, this.role, this.table_structure, this.table_map, this.data, this.table_name, has_after_triggers)
                             result = res.result;
                             after = res.after;
                             break;
                         }
                         case 'DELETE': {
-                            if (has_after_triggers) before = await get_method(tx, this.query, this.user, this.structure, rolePermissions, this.role, this.table_structure, tableMap, undefined, built_where, this.table_name, limit)
-                            result = await delete_method(tx, this.query, this.structure, rolePermissions, this.role, this.table_structure, tableMap, built_where, this.table_name, limit)
+                            if (has_after_triggers) before = await get_method(tx, this.query, this.user, this.structure, this.role_permissions, this.role, this.table_structure, this.table_map, undefined, this.where, this.table_name, this.limit)
+                            result = await delete_method(tx, this.query, this.structure, this.role_permissions, this.role, this.table_structure, this.table_map, this.where, this.table_name, this.limit)
                             break;
                         }
                         default: {
@@ -255,7 +218,7 @@ export class Compiler {
                     /* -------------------------------------------------------------------------- */
                     /*                               AFTER TRIGGERS                               */
                     /* -------------------------------------------------------------------------- */
-                    if (after_triggers && has_after_triggers) await run_triggers(tx, this.options, this.query, this.user, this.role, this.structure, tableMap, this.table_structure, user_select_data_fields, after_triggers, true, before, after, result)
+                    if (after_triggers && has_after_triggers) await run_triggers(tx, this.options, this.query, this.user, this.role, this.structure, this.table_map, this.table_structure, this.data, after_triggers, true, before, after, result)
 
                     return result
                 })
@@ -265,5 +228,110 @@ export class Compiler {
         }
 
         return result
+    }
+
+    private validate_fields(
+        value: Record<string, any> | Array<Record<string, any>>
+    ) {
+        const result = Array.isArray(value)
+            ? [...value]
+            : { ...value };
+
+        if (!Object.keys(result).length) {
+            throw new Error("No allowed fields");
+        }
+
+        return result;
+    }
+
+    private define_select_data() {
+        switch (this.type) {
+            case "GET": {
+                if (!this.query.select) {
+                    throw new Error("Select is necessary on GET request");
+                }
+
+                this.select = this.validate_fields(
+                    alias_selected_fields(
+                        resolve_fields(
+                            this.structure,
+                            this.query.select,
+                            this.type,
+                            this.role,
+                            this.query.table,
+                            this.table_map
+                        )
+                    )
+                );
+
+                break;
+            }
+
+            case "DELETE": {
+                this.select = this.validate_fields(
+                    alias_selected_fields(
+                        resolve_fields(
+                            this.structure,
+                            "*",
+                            this.type,
+                            this.role,
+                            this.query.table,
+                            this.table_map
+                        )
+                    )
+                );
+
+                break;
+            }
+
+            case "PUT":
+            case "POST": {
+                if (!this.query.data) {
+                    throw new Error("Data is necessary on PUT/POST requests");
+                }
+
+                this.data = this.validate_fields(
+                    stripPrefixes(
+                        resolve_data(
+                            this.structure,
+                            this.user,
+                            this.query,
+                            this.query.data,
+                            this.type,
+                            this.role,
+                            this.query.table,
+                            this.table_map,
+                            this.before_values,
+                            this.after_values,
+                            this.result_values
+                        )
+                    )
+                );
+
+                break;
+            }
+        }
+    }
+
+    private define_where(allowed: FieldPermission, disallowed: FieldPermission) {
+        const aclWhere = buildAclWhere(allowed, disallowed);
+
+        let query_where = this.query.where ? validate_where_fields(this.query.where, this.table_map, this.table_name, this.structure, this.role, this.type) : this.query.where
+        if (query_where && aclWhere) {
+            this.where = {
+                and: [aclWhere, query_where]
+            };
+        } else if (query_where) {
+            this.where = query_where;
+        } else if (aclWhere) {
+            this.where = aclWhere
+        }
+
+        if (this.where && (typeof allowed != 'string' && !Array.isArray(allowed) || typeof disallowed != 'string' && !Array.isArray(disallowed))) {
+            const has_been_accepted = await if_condition(this.db, this.where, this.table_map, this.user, this.role, this.structure, this.query, this.table)
+            if (!has_been_accepted) throw new Error("Not allowed or Empty")
+        }
+
+        this.where = this.where ? await buildWhere(this.db, this.where!, this.table_map, this.user, this.role, this.structure, this.query, this.table, this.table_name, undefined, this.before_values, this.after_values, this.result_values) : false
     }
 }
