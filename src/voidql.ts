@@ -1,5 +1,3 @@
-import { getTableName } from "drizzle-orm";
-
 import {
     BuildWhereOptions,
     CompileResult,
@@ -11,28 +9,7 @@ import {
     Transaction,
     WhereCondition,
 } from "./types.js";
-
-import {
-    alias_selected_fields,
-    extractTableMap,
-    resolve_data,
-    resolve_fields,
-    stripPrefixes,
-    validate_where_fields,
-} from "./rbac.js";
-
-import {
-    buildAclWhere,
-    buildWhere,
-    delete_method,
-    get_method,
-    if_condition,
-    is_allowed_empty,
-    post_method,
-    put_method,
-    run_triggers,
-} from "./drizzle.js";
-import { Compiler } from "./compiler.js";
+import { Compiler } from "./compiler/index.js";
 
 export type VoidQLContext = {
     db: Database | Transaction;

@@ -14,7 +14,7 @@ import {
     TableStructure,
     Transaction,
     WhereCondition,
-} from "./types.js";
+} from "../types.js";
 
 import {
     alias_selected_fields,
@@ -23,7 +23,7 @@ import {
     resolve_fields,
     stripPrefixes,
     validate_where_fields,
-} from "./rbac.js";
+} from "../rbac.js";
 
 import {
     buildAclWhere,
@@ -35,8 +35,8 @@ import {
     post_method,
     put_method,
     run_triggers,
-} from "./drizzle.js";
-import { VoidQLContext } from "./voidql.js";
+} from "../drizzle.js";
+import { VoidQLContext } from "../voidql.js";
 
 export type CompilerContext = VoidQLContext & {
   query: StructuredQuery;
