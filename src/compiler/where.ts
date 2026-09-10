@@ -1,7 +1,7 @@
 import { Compiler } from "./index.js";
 import { ExistsCondition, NotExistsCondition, WhereCondition } from "../types.js";
 import { and, between, eq, exists, gt, gte, ilike, inArray, isNotNull, isNull, like, lt, lte, ne, not, notBetween, notExists, notIlike, notInArray, notLike, or, sql } from "drizzle-orm";
-import { alias_selected_fields, is_op_type, requests_data, resolve_fields } from "../rbac.js";
+import { alias_selected_fields, is_op_type, requests_data, resolve_fields, resolveCustomValue } from "../rbac.js";
 
 declare module "./index.js" {
     interface Compiler {
@@ -34,7 +34,7 @@ Compiler.prototype.build_where = function (cond: WhereCondition, custom_data?:Re
         return this.or(parts);
     }
     else if('if' in cond && cond.if && "when" in cond.if && cond.if.when != undefined) {
-        return await if_conditions(db, cond, tableMap, user, role, structure, query, default_table, default_table_name, before_values, after_values, result_values)
+        return await if_conditions(db, cond, tableMap, user, role, structure, query, default_table, this.table_name, before_values, after_values, result_values)
     }else if('not' in cond && cond.not != undefined) {
         return not(this.build_where(cond.not))
     }
@@ -108,7 +108,7 @@ Compiler.prototype.build_where = function (cond: WhereCondition, custom_data?:Re
     }
 
   if ("left_value" in cond) {
-    const left_value = resolveCustomValue(cond.left_value, user, query, tableMap, default_table_name, custom_data)
+    const left_value = resolveCustomValue(cond.left_value, this.user, this.query, this.table_map, this.table_name, custom_data)
     const passed = check_passed(cond, left_value)
     if(passed != null) return passed
     left = sql`${sanitize_undefined(left_value)}`;
@@ -118,13 +118,13 @@ Compiler.prototype.build_where = function (cond: WhereCondition, custom_data?:Re
       [tbl, col] = cond.field.split(".");
     }else {
       col = cond.field;
-      tbl = default_table_name;
+      tbl = this.table_name;
     }
     const column = tableMap[tbl]?.[col];
     if (!column) throw new Error(`Column '${cond.field}' not found`);
     left = column;
   } else if("value" in cond) {
-    const value = resolveCustomValue(cond.value, user, query, tableMap, default_table_name, custom_data)
+    const value = resolveCustomValue(cond.value, this.user, this.query, this.table_map, this.table_name, custom_data)
     const passed = check_passed(cond, value)
     if(passed != null) return passed
     left = sql`${sanitize_undefined(value)}`;
@@ -134,18 +134,18 @@ Compiler.prototype.build_where = function (cond: WhereCondition, custom_data?:Re
   }
 
   if ("value" in cond) {
-    const right_value = resolveCustomValue(cond.value, user, query, tableMap, default_table_name, custom_data)
+    const right_value = resolveCustomValue(cond.value, this.user, this.query, this.table_map, this.table_name, custom_data)
     const passed = check_passed(cond, right_value)
     if(passed != null) return passed
     right = sql`${sanitize_undefined(right_value)}`;
   }
   
   if("start" in cond && "end" in cond && is_op_type(cond, "BETWEEN")) {
-    const start_value = resolveCustomValue(cond.start, user, query, tableMap, default_table_name, custom_data)
+    const start_value = resolveCustomValue(cond.start, this.user, this.query, this.table_map, this.table_name, custom_data)
     const start_passed = check_passed(cond, start_value)
     if(start_passed != null) return start_passed
     start = sql`${sanitize_undefined(start_value)}`;
-    const end_value = resolveCustomValue(cond.end, user, query, tableMap, default_table_name, custom_data)
+    const end_value = resolveCustomValue(cond.end, this.user, this.query, this.table_map, this.table_name, custom_data)
     const end_passed = check_passed(cond, end_value)
     if(end_passed != null) return end_passed
     end = sql`${sanitize_undefined(end_value)}`;
@@ -157,13 +157,13 @@ Compiler.prototype.build_where = function (cond: WhereCondition, custom_data?:Re
 
   // Subquery IN
   if(is_op_type(cond, "IN") && (left != null && left !=undefined)) {
-    return await in_condition(db, left, right, tableMap, user, role, structure, query, before_values, after_values, result_values)
+    return this.in_condition(left, right)
   }else if(is_op_type(cond, "IN")) {
     return sql`false`
   }
 
   if(is_op_type(cond, "NOT IN") && (left != null && left !=undefined)) {
-    return await not_in_condition(db, left, right, tableMap, user, role, structure, query, before_values, after_values, result_values)
+    return this.not_in_condition(left, right)
   }else if(is_op_type(cond, "NOT IN")) {
     return sql`false`
   }
