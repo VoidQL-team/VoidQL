@@ -1,7 +1,7 @@
 import { Compiler } from "./index.js";
-import { ExistsCondition, NotExistsCondition, WhereCondition } from "../types.js";
-import { and, between, eq, exists, gt, gte, ilike, inArray, isNotNull, isNull, like, lt, lte, ne, not, notBetween, notExists, notIlike, notInArray, notLike, or, sql } from "drizzle-orm";
-import { alias_selected_fields, is_op_type, requests_data, resolve_fields, resolveCustomValue } from "../rbac.js";
+import { ExistsCondition, FieldPermission, NotExistsCondition, WhereCondition } from "../types.js";
+import { and, between, eq, exists, gt, gte, ilike, inArray, isNotNull, isNull, like, lt, lte, ne, not, notBetween, notExists, notIlike, notInArray, notLike, or, SQL, sql } from "drizzle-orm";
+import { alias_selected_fields, is_op_type, requests_data, resolve_fields, resolveCustomValue, validate_where_fields } from "../rbac.js";
 
 declare module "./index.js" {
     interface Compiler {
@@ -10,108 +10,117 @@ declare module "./index.js" {
         or(conditions:any[]): any;
         exists(condition: ExistsCondition): any;
         not_exists(condition: NotExistsCondition): any;
-        in_condition(left:any, right:any):any;
-        not_in_condition(left:any, right:any):any;
+        in_condition(left:any, right:any): any;
+        not_in_condition(left:any, right:any): any;
+        check_passed(cond: WhereCondition, value:any): SQL | null;
+        sanitize_undefined(value:any): null | any;
+        build_acl_where(allowed:FieldPermission, disallowed:FieldPermission): WhereCondition | null;
+        define_where(allowed:FieldPermission, disallowed:FieldPermission): void;
+        is_allowed_empty(allowed: FieldPermission): boolean;
     }
 }
 
-Compiler.prototype.build_where = function (cond: WhereCondition, custom_data?:Record<string, any>): any {
-    if(cond == undefined) return
-    if(typeof cond == 'boolean') return cond
-    
-    if ("and" in cond && cond.and) {
-        const parts = cond.and.map(c =>
-            this.build_where(c)
-        );
+/* -------------------------------------------------------------------------- */
+/*                                WHERE BUILDER                               */
+/* -------------------------------------------------------------------------- */
 
-        return this.and(parts);
-    }
-    else if ("or" in cond && cond.or) {
-        const parts = cond.or.map(c =>
-            this.build_where(c)
-        );
+Compiler.prototype.build_where = function(cond: WhereCondition, custom_data?:Record<string, any>): any {
+  if(cond == undefined) return
+  if(typeof cond == 'boolean') return cond
+  
+  if ("and" in cond && cond.and) {
+    const parts = cond.and.map(c =>
+      this.build_where(c)
+    );
 
-        return this.or(parts);
-    }
-    else if('if' in cond && cond.if && "when" in cond.if && cond.if.when != undefined) {
-        return await if_conditions(db, cond, tableMap, user, role, structure, query, default_table, this.table_name, before_values, after_values, result_values)
-    }else if('not' in cond && cond.not != undefined) {
-        return not(this.build_where(cond.not))
-    }
+    return this.and(parts);
+  }
+  else if ("or" in cond && cond.or) {
+    const parts = cond.or.map(c =>
+      this.build_where(c)
+    );
 
-    if (cond && ('op' in cond || 'operator' in cond) && is_op_type(cond, "EXISTS") && 'query' in cond) {
-        return this.exists(cond)
-    }
+    return this.or(parts);
+  }
+  else if('if' in cond && cond.if && "when" in cond.if && cond.if.when != undefined) {
+    return if_conditions(db, cond, tableMap, user, role, structure, query, default_table, this.table_name, before_values, after_values, result_values)
+  }else if('not' in cond && cond.not != undefined) {
+    return not(this.build_where(cond.not))
+  }
 
-    if (cond && ('op' in cond || 'operator' in cond) && is_op_type(cond, "NOT EXISTS") && 'query' in cond) {
-        return this.not_exists(cond)
-    }
+  if (cond && ('op' in cond || 'operator' in cond) && is_op_type(cond, "EXISTS") && 'query' in cond) {
+    return this.exists(cond)
+  }
 
-    // Determine left side
-    let left: any;
-    let right: any;
+  if (cond && ('op' in cond || 'operator' in cond) && is_op_type(cond, "NOT EXISTS") && 'query' in cond) {
+    return this.not_exists(cond)
+  }
 
-    let start: any
-    let end: any
+  // Determine left side
+  let left: any;
+  let right: any;
 
-    if (
-        !custom_data &&
-        !("if" in cond) &&
-        requests_data(cond, "before") &&
-        this.before_values &&
-        Array.isArray(this.before_values)
-    ) {
-        const parts = this.before_values.map(custom_data =>
-            this.build_where(cond, custom_data)
-        );
+  let start: any
+  let end: any
 
-        return this.and(parts);
+  if (
+    !custom_data &&
+    !("if" in cond) &&
+    requests_data(cond, "before") &&
+    this.before_values &&
+    Array.isArray(this.before_values)
+  ) {
+    const parts = this.before_values.map(custom_data =>
+      this.build_where(cond, custom_data)
+    );
 
-    } else if (
-        !custom_data &&
-        !("if" in cond) &&
-        requests_data(cond, "after") &&
-        this.after_values &&
-        Array.isArray(this.after_values)
-    ) {
-        const parts = this.after_values.map(custom_data =>
-            this.build_where(cond, custom_data)
-        );
+    return this.and(parts);
 
-        return this.and(parts);
+  } else if (
+    !custom_data &&
+    !("if" in cond) &&
+    requests_data(cond, "after") &&
+    this.after_values &&
+    Array.isArray(this.after_values)
+  ) {
+    const parts = this.after_values.map(custom_data =>
+      this.build_where(cond, custom_data)
+    );
 
-    } else if (
-        !custom_data &&
-        !("if" in cond) &&
-        requests_data(cond, "result") &&
-        this.result_values &&
-        Array.isArray(this.result_values)
-    ) {
-        const parts = this.result_values.map(custom_data =>
-            this.build_where(cond, custom_data)
-        );
+    return this.and(parts);
 
-        return this.and(parts);
+  } else if (
+    !custom_data &&
+    !("if" in cond) &&
+    requests_data(cond, "result") &&
+    this.result_values &&
+    Array.isArray(this.result_values)
+  ) {
+    const parts = this.result_values.map(custom_data =>
+      this.build_where(cond, custom_data)
+    );
 
-    } else if (
-        !custom_data &&
-        !("if" in cond) &&
-        requests_data(cond, "data") &&
-        this.query.data &&
-        Array.isArray(this.query.data)
-    ) {
-        const parts = this.query.data.map(custom_data =>
-            this.build_where(cond, custom_data)
-        );
+    return this.and(parts);
 
-        return this.and(parts);
-    }
+  } else if (
+    !custom_data &&
+    !("if" in cond) &&
+    requests_data(cond, "data") &&
+    this.query.data &&
+    Array.isArray(this.query.data)
+  ) {
+    const parts = this.query.data.map(custom_data =>
+      this.build_where(cond, custom_data)
+    );
+
+    return this.and(parts);
+  }
 
   if ("left_value" in cond) {
     const left_value = resolveCustomValue(cond.left_value, this.user, this.query, this.table_map, this.table_name, custom_data)
-    const passed = check_passed(cond, left_value)
+    const passed = this.check_passed(cond, left_value)
     if(passed != null) return passed
-    left = sql`${sanitize_undefined(left_value)}`;
+    left = sql`${this.sanitize_undefined(left_value)}`;
   } else if ("field" in cond && cond.field) {
     let tbl, col;
     if(cond.field.includes(".")) {
@@ -120,14 +129,14 @@ Compiler.prototype.build_where = function (cond: WhereCondition, custom_data?:Re
       col = cond.field;
       tbl = this.table_name;
     }
-    const column = tableMap[tbl]?.[col];
+    const column = this.table_map[tbl]?.[col];
     if (!column) throw new Error(`Column '${cond.field}' not found`);
     left = column;
   } else if("value" in cond) {
     const value = resolveCustomValue(cond.value, this.user, this.query, this.table_map, this.table_name, custom_data)
-    const passed = check_passed(cond, value)
+    const passed = this.check_passed(cond, value)
     if(passed != null) return passed
-    left = sql`${sanitize_undefined(value)}`;
+    left = sql`${this.sanitize_undefined(value)}`;
   } else {
     console.log(cond)
     throw new Error("Condition must have 'field' or 'left_value' or 'value");
@@ -135,20 +144,20 @@ Compiler.prototype.build_where = function (cond: WhereCondition, custom_data?:Re
 
   if ("value" in cond) {
     const right_value = resolveCustomValue(cond.value, this.user, this.query, this.table_map, this.table_name, custom_data)
-    const passed = check_passed(cond, right_value)
+    const passed = this.check_passed(cond, right_value)
     if(passed != null) return passed
-    right = sql`${sanitize_undefined(right_value)}`;
+    right = sql`${this.sanitize_undefined(right_value)}`;
   }
   
   if("start" in cond && "end" in cond && is_op_type(cond, "BETWEEN")) {
     const start_value = resolveCustomValue(cond.start, this.user, this.query, this.table_map, this.table_name, custom_data)
-    const start_passed = check_passed(cond, start_value)
+    const start_passed = this.check_passed(cond, start_value)
     if(start_passed != null) return start_passed
-    start = sql`${sanitize_undefined(start_value)}`;
+    start = sql`${this.sanitize_undefined(start_value)}`;
     const end_value = resolveCustomValue(cond.end, this.user, this.query, this.table_map, this.table_name, custom_data)
-    const end_passed = check_passed(cond, end_value)
+    const end_passed = this.check_passed(cond, end_value)
     if(end_passed != null) return end_passed
-    end = sql`${sanitize_undefined(end_value)}`;
+    end = sql`${this.sanitize_undefined(end_value)}`;
   } else if(("start" in cond || "end" in cond)) {
     throw new Error("'start' or 'end' fields must have a compatible operator");
   } else if(is_op_type(cond, "BETWEEN") && !("start" in cond && "end" in cond)) {
@@ -210,7 +219,7 @@ Compiler.prototype.build_where = function (cond: WhereCondition, custom_data?:Re
   throw new Error(`Unsupported operator: ${operator}`);
 };
 
-Compiler.prototype.and = function (conditions:any[]) { 
+Compiler.prototype.and = function(conditions:any[]) { 
     const is_one_boolean = conditions.some(cond => typeof cond == "boolean")
     if(is_one_boolean) {
         const has_false = conditions.some(cond => typeof cond === "boolean" && cond === false)
@@ -223,7 +232,7 @@ Compiler.prototype.and = function (conditions:any[]) {
     return and(...conditions);
 }
 
-Compiler.prototype.or = function (conditions: any[]) {
+Compiler.prototype.or = function(conditions: any[]) {
   const is_one_boolean = conditions.some(cond => typeof cond == "boolean")
   if(is_one_boolean) {
     const has_true = conditions.some(cond => typeof cond === "boolean" && cond === true)
@@ -232,7 +241,7 @@ Compiler.prototype.or = function (conditions: any[]) {
   return or(...conditions);
 }
 
-Compiler.prototype.exists = function (cond: ExistsCondition) {
+Compiler.prototype.exists = function(cond: ExistsCondition) {
   let subTable = null
   let fields:any = null
   let subWhere = null
@@ -254,7 +263,7 @@ Compiler.prototype.exists = function (cond: ExistsCondition) {
   return exists(inner_query);
 }
 
-Compiler.prototype.not_exists = function (cond: NotExistsCondition) {
+Compiler.prototype.not_exists = function(cond: NotExistsCondition) {
   let subTable = null
   let fields:any = null
   let subWhere = null
@@ -316,4 +325,101 @@ Compiler.prototype.not_in_condition = function(left:any, right: any) {
     // Normal NOT IN array
     if (Array.isArray(right)) return notInArray(left, right);
   throw Error('Wrong values for not in condition')
+}
+
+/* -------------------------------------------------------------------------- */
+/*                                 SANITIZERS                                 */
+/* -------------------------------------------------------------------------- */
+
+Compiler.prototype.check_passed = function(cond: WhereCondition, value: any) {
+  if (typeof cond === 'boolean') return null
+
+  if (
+    cond &&
+    ('op' in cond || 'operator' in cond) &&
+    (is_op_type(cond, "IS PASSED") || is_op_type(cond, "IS NOT PASSED"))
+  ) {
+    const passed = value !== undefined
+
+    if (is_op_type(cond, "IS PASSED")) {
+      return sql`${passed}`
+    }
+
+    if (is_op_type(cond, "IS NOT PASSED")) {
+      return sql`${!passed}`
+    }
+  }
+
+  return null
+}
+
+Compiler.prototype.sanitize_undefined = function(value:any) {
+  if(value == undefined) return null
+  return value
+}
+
+/* -------------------------------------------------------------------------- */
+/*                               MAIN FUNCTIONS                               */
+/* -------------------------------------------------------------------------- */
+
+Compiler.prototype.is_allowed_empty = function(allowed: FieldPermission) {
+  if(Array.isArray(allowed) && allowed.length == 0) return true
+  else if(!allowed) return true
+  else if(allowed == '') return true
+  else if(typeof allowed == 'object' && !Array.isArray(allowed) && allowed.field) {
+    return this.is_allowed_empty(allowed.field)
+  }
+  return false
+}
+
+Compiler.prototype.build_acl_where = function(allowed: FieldPermission, disallowed: FieldPermission) {
+  let aclWhere: WhereCondition | null = null;
+
+  function injectIfExists(obj: any) {
+     return obj && obj.where ? (obj.where as WhereCondition) : undefined;
+  }
+  
+  const allowedWhere = injectIfExists(allowed);
+  const disallowedWhere = injectIfExists(disallowed);
+
+  if (allowedWhere && disallowedWhere) {
+    aclWhere = {
+      and: [
+        allowedWhere,
+        {
+          not: disallowedWhere
+        }
+      ],
+    };
+  } else if (allowedWhere) {
+    aclWhere = allowedWhere;
+  } else if (disallowedWhere) {
+    aclWhere = {
+      not: disallowedWhere
+    };
+  }
+
+  return aclWhere;
+}
+
+Compiler.prototype.define_where = function(allowed: FieldPermission, disallowed: FieldPermission) {
+  const aclWhere = this.build_acl_where(allowed, disallowed);
+
+  let query_where = this.query.where ? validate_where_fields(this.query.where, this.table_map, this.table_name, this.structure, this.role, this.type) : this.query.where
+  if (query_where && aclWhere) {
+      this.where = {
+          and: [aclWhere, query_where]
+      };
+  } else if (query_where) {
+      this.where = query_where;
+  } else if (aclWhere) {
+      this.where = aclWhere
+  }
+
+  if (this.where && (typeof allowed != 'string' && !Array.isArray(allowed) || typeof disallowed != 'string' && !Array.isArray(disallowed))) {
+      const has_been_accepted = await if_condition(this.db, this.where, this.table_map, this.user, this.role, this.structure, this.query, this.table)
+      if (!has_been_accepted) throw new Error("Not allowed or Empty")
+  }
+
+  this.where = this.where ? this.build_where(this.where!) : false
 }

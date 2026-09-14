@@ -1,12 +1,8 @@
-import { getTableName } from "drizzle-orm";
+import { getTableName, SQL } from "drizzle-orm";
 
 import {
     BuildWhereOptions,
-    CompileResult,
     Database,
-    FieldPermission,
-    QueryPhase,
-    Request,
     RolePermissions,
     Structure,
     StructuredQuery,
@@ -22,16 +18,11 @@ import {
     resolve_data,
     resolve_fields,
     stripPrefixes,
-    validate_where_fields,
 } from "../rbac.js";
 
 import {
-    buildAclWhere,
-    buildWhere,
     delete_method,
     get_method,
-    if_condition,
-    is_allowed_empty,
     post_method,
     put_method,
     run_triggers,
@@ -56,6 +47,10 @@ export class Compiler {
     protected readonly table_name: string;
     protected where?: WhereCondition;
     protected readonly limit: null | number;
+
+    /* -------------------------------------------------------------------------- */
+    /*                                 PARAMETERS                                 */
+    /* -------------------------------------------------------------------------- */
     protected readonly user: any;
     protected readonly role: string;
     protected readonly structure: Structure;
@@ -65,9 +60,18 @@ export class Compiler {
     protected readonly table_structure: TableStructure;
     protected readonly role_permissions: RolePermissions;
     protected readonly table_map: Record<string, any>;
+
+    /* -------------------------------------------------------------------------- */
+    /*                                  TRIGGERS                                  */
+    /* -------------------------------------------------------------------------- */
     protected readonly before_values?: any | any[];
     protected readonly after_values?: any | any[];
     protected readonly result_values?: any | any[];
+
+    /* -------------------------------------------------------------------------- */
+    /*                                  COMPILED                                  */
+    /* -------------------------------------------------------------------------- */
+    protected compiled_query?: SQL;
 
     constructor(context: CompilerContext) {
         this.db = context.db;
@@ -121,7 +125,7 @@ export class Compiler {
                     ? this.role_permissions.deny ?? []
                     : [];
 
-        if (is_allowed_empty(allowed)) throw new Error("Not allowed");
+        if (this.is_allowed_empty(allowed)) throw new Error("Not allowed");
         
         if (this.query.limit) this.limit = this.query.limit
 
@@ -311,27 +315,5 @@ export class Compiler {
                 break;
             }
         }
-    }
-
-    private define_where(allowed: FieldPermission, disallowed: FieldPermission) {
-        const aclWhere = buildAclWhere(allowed, disallowed);
-
-        let query_where = this.query.where ? validate_where_fields(this.query.where, this.table_map, this.table_name, this.structure, this.role, this.type) : this.query.where
-        if (query_where && aclWhere) {
-            this.where = {
-                and: [aclWhere, query_where]
-            };
-        } else if (query_where) {
-            this.where = query_where;
-        } else if (aclWhere) {
-            this.where = aclWhere
-        }
-
-        if (this.where && (typeof allowed != 'string' && !Array.isArray(allowed) || typeof disallowed != 'string' && !Array.isArray(disallowed))) {
-            const has_been_accepted = await if_condition(this.db, this.where, this.table_map, this.user, this.role, this.structure, this.query, this.table)
-            if (!has_been_accepted) throw new Error("Not allowed or Empty")
-        }
-
-        this.where = this.where ? await buildWhere(this.db, this.where!, this.table_map, this.user, this.role, this.structure, this.query, this.table, this.table_name, undefined, this.before_values, this.after_values, this.result_values) : false
     }
 }
