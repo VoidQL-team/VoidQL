@@ -1,11 +1,12 @@
 import { and, eq } from "drizzle-orm";
 import { Compiler } from "./index.js";
 import { resolve_group_by_fields, resolve_order_by_fields, toArray } from "../rbac.js";
+import { Join } from "../types.js";
 
 declare module "./index.js" {
     interface Compiler {
         get():void;
-        build_join(q: any, joins: any[]):void;
+        build_join(q: any, joins: Join[]):void;
     }
 }
 
@@ -18,7 +19,7 @@ Compiler.prototype.get = function () {
     if (this.where) q.where(this.where);
 
     const groupByFields =
-        resolve_group_by_fields(this.structure, toArray(this.query.group_by), this.type, this.role, this.table_name, this.table_map) ??
+        resolve_group_by_fields(this.structure, toArray(this.group_by), this.type, this.role, this.table_name, this.table_map) ??
         toArray(this.role_permissions?.group_by) ??
         [];
 
@@ -27,7 +28,7 @@ Compiler.prototype.get = function () {
     }
 
     const orderByFields =
-        resolve_order_by_fields(this.structure, toArray(this.query.order_by), this.type, this.role, this.table_name, this.table_map) ??
+        resolve_order_by_fields(this.structure, toArray(this.order_by), this.type, this.role, this.table_name, this.table_map) ??
         toArray(this.role_permissions?.order_by) ??
         [];
 
@@ -40,7 +41,7 @@ Compiler.prototype.get = function () {
     this.compiled_query = q
 }
 
-Compiler.prototype.build_join = function(q: any, joins: any[]) {
+Compiler.prototype.build_join = function(q: any, joins: Join[]) {
   for (const j of joins) {
     const joinStruct = this.table_map[j.table];
     if (!joinStruct) throw new Error(`Table '${j.table}' not found in tableMap`);

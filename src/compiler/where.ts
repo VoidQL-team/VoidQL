@@ -106,10 +106,10 @@ Compiler.prototype.build_where = function(cond: WhereCondition, custom_data?:Rec
     !custom_data &&
     !("if" in cond) &&
     requests_data(cond, "data") &&
-    this.query.data &&
-    Array.isArray(this.query.data)
+    this.data &&
+    Array.isArray(this.data)
   ) {
-    const parts = this.query.data.map(custom_data =>
+    const parts = this.data.map(custom_data =>
       this.build_where(cond, custom_data)
     );
 
@@ -405,7 +405,7 @@ Compiler.prototype.build_acl_where = function(allowed: FieldPermission, disallow
 Compiler.prototype.define_where = function(allowed: FieldPermission, disallowed: FieldPermission) {
   const aclWhere = this.build_acl_where(allowed, disallowed);
 
-  let query_where = this.query.where ? validate_where_fields(this.query.where, this.table_map, this.table_name, this.structure, this.role, this.type) : this.query.where
+  let query_where = this.where ? validate_where_fields(this.where, this.table_map, this.table_name, this.structure, this.role, this.type) : this.where
   if (query_where && aclWhere) {
       this.where = {
           and: [aclWhere, query_where]

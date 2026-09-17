@@ -1,41 +1,28 @@
 import { getColumns, inArray } from "drizzle-orm";
-import { resolve_order_by_fields, resolve_returning_fields, toArray } from "../rbac.js";
+import { resolve_returning_fields } from "../rbac.js";
 import { Compiler } from "./index.js";
 
 declare module "./index.js" {
     interface Compiler {
-        update():void;
+        insert():void;
     }
 }
 
-Compiler.prototype.update = function() {
-  if (!this.data) throw new Error("PUT requires data");
+Compiler.prototype.insert = function() {
+  if (!this.data) throw new Error("POST requires data");
 
-  const update_query = this.db.update(this.table).set(this.data)
+  const post_query = this.db
+    .insert(this.table)
+    .values(this.select);
   
-  if(this.where) {
-    update_query.where(this.where)
-  }
-
-  const orderByFields =
-    resolve_order_by_fields(this.structure, toArray(this.order_by), this.type, this.role, this.table_name, this.table_map) ??
-    toArray(this.role_permissions?.order_by) ??
-    [];
-
-  if (orderByFields.length > 0) {
-    update_query.orderBy(...orderByFields);
-  }
-
-  if(this.limit != null) update_query.limit(this.limit)
-
   let after_function:any = null;
     
   if(this.returning || has_after_triggers) {
     let fields = getColumns(this.table)
-    if (typeof update_query.returning === 'function') {
-      update_query.returning(fields);
-    }else if (typeof update_query.$returningId === 'function') {
-      update_query.$returningId(fields);
+    if (typeof post_query.returning === 'function') {
+      post_query.returning(fields);
+    }else if (typeof post_query.$returningId === 'function') {
+      post_query.$returningId(fields);
       after_function = async (result:any) => {
         if(!result) return
         const fieldName = Object.keys(result[0])[0];
@@ -44,14 +31,12 @@ Compiler.prototype.update = function() {
         const after = await this.db.select().from(table).where(inArray(table[fieldName], values)).execute()
         return after
       }
-    }else if (typeof update_query.output === 'function') {
-      update_query.output(fields);
+    }else if (typeof post_query.output === 'function') {
+      post_query.output(fields);
     }
   }
-
-  console.log(update_query.toSQL().sql, update_query.toSQL().params)
     
-  let result = await update_query.execute();
+  let result = await post_query.execute();
 
   let after: any = null;
 

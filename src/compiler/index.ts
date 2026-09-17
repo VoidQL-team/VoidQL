@@ -40,13 +40,16 @@ export class Compiler {
     /* -------------------------------------------------------------------------- */
     /*                                  DATABASE                                  */
     /* -------------------------------------------------------------------------- */
-    protected readonly db: Database | Transaction;
+    protected db: Database | Transaction;
     protected select?: Record<string, any> | Array<Record<string, any>>;
     protected data?: Record<string, any> | Array<Record<string, any>>;
     protected readonly table: Table;
     protected readonly table_name: string;
     protected where?: WhereCondition;
     protected readonly limit: null | number;
+    protected readonly returning?: string | string[];
+    protected readonly order_by?: string | string[];
+    protected readonly group_by?: string | string[];
 
     /* -------------------------------------------------------------------------- */
     /*                                 PARAMETERS                                 */
@@ -74,7 +77,9 @@ export class Compiler {
     protected compiled_query?: SQL;
 
     constructor(context: CompilerContext) {
-        this.db = context.db;
+        context.db.transaction(async (tx: Transaction) => {
+            this.db = tx;
+        })
         this.user = context.user;
         this.role = context.role;
         this.limit = null
@@ -84,6 +89,9 @@ export class Compiler {
         this.before_values = context.before_values;
         this.after_values = context.after_values;
         this.result_values = context.result_values;
+        this.returning = this.query.returning;
+        this.order_by = this.query.order_by;
+        this.group_by = this.query.group_by;
 
         /* -------------------------------------------------------------------------- */
         /*                              TABLE RETRIEVING                              */
@@ -290,7 +298,7 @@ export class Compiler {
 
             case "PUT":
             case "POST": {
-                if (!this.query.data) {
+                if (!this.data) {
                     throw new Error("Data is necessary on PUT/POST requests");
                 }
 
@@ -300,7 +308,7 @@ export class Compiler {
                             this.structure,
                             this.user,
                             this.query,
-                            this.query.data,
+                            this.data,
                             this.type,
                             this.role,
                             this.query.table,
