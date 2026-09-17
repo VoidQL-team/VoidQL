@@ -1,7 +1,7 @@
 import { and, eq } from "drizzle-orm";
 import { Compiler } from "./index.js";
 import { resolve_group_by_fields, resolve_order_by_fields, toArray } from "../rbac.js";
-import { Join } from "../types.js";
+import { Join, WhereCondition } from "../types.js";
 
 declare module "./index.js" {
     interface Compiler {
@@ -41,6 +41,27 @@ Compiler.prototype.get = function () {
     this.compiled_query = q
 }
 
+function isWhereCondition(
+  on: Join["on"]
+): on is WhereCondition {
+  if (typeof on === "boolean") {
+    return true;
+  }
+
+  if (!on || typeof on !== "object" || Array.isArray(on)) {
+    return false;
+  }
+
+  return (
+    "operator" in on ||
+    "op" in on ||
+    "and" in on ||
+    "or" in on ||
+    "not" in on ||
+    "if" in on
+  );
+}
+
 Compiler.prototype.build_join = function(q: any, joins: Join[]) {
   for (const j of joins) {
     const joinStruct = this.table_map[j.table];
@@ -49,7 +70,7 @@ Compiler.prototype.build_join = function(q: any, joins: Join[]) {
     let joinCondition: any;
 
     // Support object with AND/OR inside 'on'
-    if (j.on && j.on.type && (j.on.type.toUpperCase() === "AND" || j.on.type.toUpperCase() === "OR")) {
+    if (isWhereCondition(j.on)) {
       // Complex condition
       joinCondition = this.build_where(j.on)
     } else {
