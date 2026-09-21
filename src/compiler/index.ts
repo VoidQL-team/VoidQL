@@ -62,8 +62,8 @@ export class Compiler {
     /* -------------------------------------------------------------------------- */
     /*                                  TRIGGERS                                  */
     /* -------------------------------------------------------------------------- */
-    protected readonly before_triggers?: TriggerStructure[];
-    protected readonly after_triggers?: TriggerStructure[];
+    protected before_triggers?: TriggerStructure[];
+    protected after_triggers?: TriggerStructure[];
     protected readonly before_values?: any | any[];
     protected readonly after_values?: any | any[];
     protected readonly result_values?: any | any[];
@@ -158,22 +158,7 @@ export class Compiler {
         /*                             TRIGGERS FILTERING                             */
         /* -------------------------------------------------------------------------- */
 
-        if(!this.options.disable_triggers) {
-            const { before_triggers, after_triggers } = endpoint.triggers ? endpoint.triggers.reduce(
-                (acc, trigger) => {
-                    if (trigger.type.toUpperCase() === 'AFTER') {
-                        if (acc.after_triggers) acc.after_triggers.push(trigger);
-                    } else if (trigger.type.toUpperCase() === 'BEFORE') {
-                        if (acc.before_triggers) acc.before_triggers.push(trigger);
-                    }
-                    return acc;
-                },
-                { before_triggers: [] as typeof endpoint.triggers, after_triggers: [] as typeof endpoint.triggers }
-            ) : { before_triggers: null, after_triggers: null }
-            
-            if(before_triggers) this.before_triggers = before_triggers
-            if(after_triggers) this.after_triggers = after_triggers
-        }
+        this.define_triggers(endpoint)
 
         switch (this.type.toUpperCase()) {
             case 'GET': {
@@ -212,14 +197,10 @@ export class Compiler {
 
     public async execute():Promise<any[] | undefined> {
         if(this.compiled && this.compiled.query && "execute" in this.compiled.query && typeof this.compiled.query.execute == "function") {
-            if(this.compiled.before_triggers) {
-                for(let trigger of this.compiled.before_triggers) {
-                    await trigger.execute()
-                }
-            }
-            let before:any
-            if(this.compiled.before) before = this.compiled.before.execute()
+            this.execute_triggers("before_triggers")
+            let before:any = this.compiled.before ? this.compiled.before.execute() : null;
             const result = await this.compiled.query.execute()
+
             return result
         }
         else throw new Error("Query execution failed")
