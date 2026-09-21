@@ -38,5 +38,7 @@ Compiler.prototype.delete = function() {
     }
   }
   
-  this.compiled_query = q;
+  this.compiled = {
+    query: q
+  }
 }

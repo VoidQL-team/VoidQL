@@ -36,7 +36,9 @@ Compiler.prototype.insert = function() {
     }
   }
     
-  this.compiled_query = q
+  this.compiled = {
+    query: q
+  }
 
   // let after: any = null;
 

@@ -432,3 +432,14 @@ export type SelectOptions = {
   select: Record<string, any> | undefined
   key: string | undefined
 }
+
+/* -------------------------------------------------------------------------- */
+/*                                  COMPILED                                  */
+/* -------------------------------------------------------------------------- */
+
+export type Compiled = {
+  query?: any,
+  before?: any,
+  before_triggers?: any[],
+  after_triggers?: any[]
+}

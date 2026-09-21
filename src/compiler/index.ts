@@ -2,6 +2,7 @@ import { getTableName, SQL } from "drizzle-orm";
 
 import {
     BuildWhereOptions,
+    Compiled,
     Database,
     RolePermissions,
     Structure,
@@ -61,8 +62,8 @@ export class Compiler {
     /* -------------------------------------------------------------------------- */
     /*                                  TRIGGERS                                  */
     /* -------------------------------------------------------------------------- */
-    protected readonly before_triggers: TriggerStructure[] | null;
-    protected readonly after_triggers: TriggerStructure[] | null;
+    protected readonly before_triggers?: TriggerStructure[];
+    protected readonly after_triggers?: TriggerStructure[];
     protected readonly before_values?: any | any[];
     protected readonly after_values?: any | any[];
     protected readonly result_values?: any | any[];
@@ -70,8 +71,7 @@ export class Compiler {
     /* -------------------------------------------------------------------------- */
     /*                                  COMPILED                                  */
     /* -------------------------------------------------------------------------- */
-    protected compiled_query?: any;
-    protected compiled_before?: any;
+    protected compiled?: Compiled;
 
     constructor(context: CompilerContext) {
         context.db.transaction(async (tx: Transaction) => {
@@ -158,20 +158,22 @@ export class Compiler {
         /*                             TRIGGERS FILTERING                             */
         /* -------------------------------------------------------------------------- */
 
-        const { before_triggers, after_triggers } = endpoint.triggers ? endpoint.triggers.reduce(
-            (acc, trigger) => {
-                if (trigger.type.toUpperCase() === 'AFTER') {
-                    if (acc.after_triggers) acc.after_triggers.push(trigger);
-                } else if (trigger.type.toUpperCase() === 'BEFORE') {
-                    if (acc.before_triggers) acc.before_triggers.push(trigger);
-                }
-                return acc;
-            },
-            { before_triggers: [] as typeof endpoint.triggers, after_triggers: [] as typeof endpoint.triggers }
-        ) : { before_triggers: null, after_triggers: null }
-        
-        this.before_triggers = before_triggers
-        this.after_triggers = after_triggers
+        if(!this.options.disable_triggers) {
+            const { before_triggers, after_triggers } = endpoint.triggers ? endpoint.triggers.reduce(
+                (acc, trigger) => {
+                    if (trigger.type.toUpperCase() === 'AFTER') {
+                        if (acc.after_triggers) acc.after_triggers.push(trigger);
+                    } else if (trigger.type.toUpperCase() === 'BEFORE') {
+                        if (acc.before_triggers) acc.before_triggers.push(trigger);
+                    }
+                    return acc;
+                },
+                { before_triggers: [] as typeof endpoint.triggers, after_triggers: [] as typeof endpoint.triggers }
+            ) : { before_triggers: null, after_triggers: null }
+            
+            if(before_triggers) this.before_triggers = before_triggers
+            if(after_triggers) this.after_triggers = after_triggers
+        }
 
         switch (this.type.toUpperCase()) {
             case 'GET': {
@@ -182,7 +184,7 @@ export class Compiler {
                 if (this.after_triggers && this.after_triggers.length != 0) {
                     this.get({
                         select: undefined,
-                        key: "compiled_before"
+                        key: "before"
                     })
                 }
                 this.update()
@@ -196,7 +198,7 @@ export class Compiler {
                 if (this.after_triggers && this.after_triggers.length != 0) {
                     this.get({
                         select: undefined,
-                        key: "compiled_before"
+                        key: "before"
                     })
                 }
                 this.delete()
@@ -206,77 +208,19 @@ export class Compiler {
                 throw new Error("Invalid operation");
             }
         }
-
-        // let result = {
-        //     execute: async () => {
-        //         let before: any = null
-        //         let after: any = null
-
-        //         /* -------------------------------------------------------------------------- */
-        //         /*                               QUERY EXECUTION                              */
-        //         /* -------------------------------------------------------------------------- */
-
-        //         let result = await this.db.transaction(async (tx: Transaction) => {
-
-        //             /* -------------------------------------------------------------------------- */
-        //             /*                               BEFORE TRIGGERS                              */
-        //             /* -------------------------------------------------------------------------- */
-
-        //             if (before_triggers && !this.options?.disable_triggers) this.data = await run_triggers(tx, this.options, this.query, this.user, this.role, this.structure, this.table_map, this.table_structure, this.data, before_triggers, false)
-
-
-        //             /* -------------------------------------------------------------------------- */
-        //             /*                           RUN QUERY BASED ON TYPE                          */
-        //             /* -------------------------------------------------------------------------- */
-
-        //             let result
-
-        //             switch (this.type.toUpperCase()) {
-        //                 case 'GET': {
-        //                     result = await get_method(tx, this.query, this.user, this.structure, this.role_permissions, this.role, this.table_structure, this.table_map, this.select, this.where, this.table_name, this.limit)
-        //                     break;
-        //                 }
-        //                 case 'PUT': {
-        //                     if (has_after_triggers) before = await get_method(tx, this.query, this.user, this.structure, this.role_permissions, this.role, this.table_structure, this.table_map, undefined, this.where, this.table_name, this.limit)
-        //                     const res = await put_method(tx, this.query, this.structure, this.role_permissions, this.role, this.table_structure, this.table_map, this.data, this.where, this.table_name, this.limit, has_after_triggers)
-        //                     result = res.result;
-        //                     after = res.after;
-        //                     break;
-        //                 }
-        //                 case 'POST': {
-        //                     const res = await post_method(tx, this.query, this.structure, this.role, this.table_structure, this.table_map, this.data, this.table_name, has_after_triggers)
-        //                     result = res.result;
-        //                     after = res.after;
-        //                     break;
-        //                 }
-        //                 case 'DELETE': {
-        //                     if (has_after_triggers) before = await get_method(tx, this.query, this.user, this.structure, this.role_permissions, this.role, this.table_structure, this.table_map, undefined, this.where, this.table_name, this.limit)
-        //                     result = await delete_method(tx, this.query, this.structure, this.role_permissions, this.role, this.table_structure, this.table_map, this.where, this.table_name, this.limit)
-        //                     break;
-        //                 }
-        //                 default: {
-        //                     throw new Error("Invalid operation");
-        //                 }
-        //             }
-
-        //             /* -------------------------------------------------------------------------- */
-        //             /*                               AFTER TRIGGERS                               */
-        //             /* -------------------------------------------------------------------------- */
-        //             if (after_triggers && has_after_triggers) await run_triggers(tx, this.options, this.query, this.user, this.role, this.structure, this.table_map, this.table_structure, this.data, after_triggers, true, before, after, result)
-
-        //             return result
-        //         })
-
-        //         return result
-        //     }
-        // }
-
-        // return result
     }
 
     public async execute():Promise<any[] | undefined> {
-        if(this.compiled_query && "execute" in this.compiled_query && typeof this.compiled_query.execute == "function") {
-            const result = await this.compiled_query.execute()
+        if(this.compiled && this.compiled.query && "execute" in this.compiled.query && typeof this.compiled.query.execute == "function") {
+            if(this.compiled.before_triggers) {
+                for(let trigger of this.compiled.before_triggers) {
+                    await trigger.execute()
+                }
+            }
+            let before:any
+            if(this.compiled.before) before = this.compiled.before.execute()
+            const result = await this.compiled.query.execute()
+            return result
         }
         else throw new Error("Query execution failed")
     }

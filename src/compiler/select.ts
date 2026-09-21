@@ -39,9 +39,10 @@ Compiler.prototype.get = function (settings?: SelectOptions) {
 
     if(this.limit != null) q.limit(this.limit)
 
-    const key = settings?.key ? settings.key : "compiled_query"
-    const compiler = this as Compiler & Record<string, any>;
-    if (key in compiler && compiler[key]) compiler[key] = q
+    const key = settings?.key ? settings.key : "query"
+    this.compiled = {
+      [key]: q
+    }
 }
 
 function isWhereCondition(
