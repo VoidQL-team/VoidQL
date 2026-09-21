@@ -56,7 +56,7 @@ export class VoidQL {
             };
         }
 
-        const single = await this.build_query(request as StructuredQuery);
+        const single = this.build_query(request as StructuredQuery);
 
         return {
             async execute() {

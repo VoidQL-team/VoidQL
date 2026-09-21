@@ -1,18 +1,19 @@
 import { and, eq } from "drizzle-orm";
 import { Compiler } from "./index.js";
 import { resolve_group_by_fields, resolve_order_by_fields, toArray } from "../rbac.js";
-import { Join, WhereCondition } from "../types.js";
+import { Join, SelectOptions, WhereCondition } from "../types.js";
 
 declare module "./index.js" {
     interface Compiler {
-        get():void;
+        get(settings?: SelectOptions):void;
         build_join(q: any, joins: Join[]):void;
     }
 }
 
-Compiler.prototype.get = function () {
+Compiler.prototype.get = function (settings?: SelectOptions) {
     if(!this.select) throw new Error("No allowed fields");
-    const q = this.db.select(this.select).from(this.table);
+    const select_fields = settings ? settings.select : this.select
+    const q = this.db.select(select_fields).from(this.table);
 
     if (this.query.join) this.build_join(q, this.query.join)
 
@@ -38,7 +39,9 @@ Compiler.prototype.get = function () {
 
     if(this.limit != null) q.limit(this.limit)
 
-    this.compiled_query = q
+    const key = settings?.key ? settings.key : "compiled_query"
+    const compiler = this as Compiler & Record<string, any>;
+    if (key in compiler && compiler[key]) compiler[key] = q
 }
 
 function isWhereCondition(

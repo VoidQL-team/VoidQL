@@ -11,18 +11,18 @@ declare module "./index.js" {
 Compiler.prototype.insert = function() {
   if (!this.data) throw new Error("POST requires data");
 
-  const post_query = this.db
+  const q = this.db
     .insert(this.table)
     .values(this.select);
   
   let after_function:any = null;
     
-  if(this.returning || has_after_triggers) {
+  if(this.returning || (this.after_triggers && this.after_triggers.length != 0)) {
     let fields = getColumns(this.table)
-    if (typeof post_query.returning === 'function') {
-      post_query.returning(fields);
-    }else if (typeof post_query.$returningId === 'function') {
-      post_query.$returningId(fields);
+    if (typeof q.returning === 'function') {
+      q.returning(fields);
+    }else if (typeof q.$returningId === 'function') {
+      q.$returningId(fields);
       after_function = async (result:any) => {
         if(!result) return
         const fieldName = Object.keys(result[0])[0];
@@ -31,49 +31,49 @@ Compiler.prototype.insert = function() {
         const after = await this.db.select().from(table).where(inArray(table[fieldName], values)).execute()
         return after
       }
-    }else if (typeof post_query.output === 'function') {
-      post_query.output(fields);
+    }else if (typeof q.output === 'function') {
+      q.output(fields);
     }
   }
     
-  let result = await post_query.execute();
+  this.compiled_query = q
 
-  let after: any = null;
+  // let after: any = null;
 
-  if (this.returning || has_after_triggers) {
-    if (after_function) {
-      after = await after_function(result);
-    } else {
-      after = result
-    }
-    if(this.returning) {
-      const allowedFields = Object.keys(
-        resolve_returning_fields(
-          this.structure,
-          this.returning,
-          this.type,
-          this.role,
-          this.table_name,
-          this.table_map
-        )
-      );
+  // if (this.returning || has_after_triggers) {
+  //   if (after_function) {
+  //     after = await after_function(result);
+  //   } else {
+  //     after = result
+  //   }
+  //   if(this.returning) {
+  //     const allowedFields = Object.keys(
+  //       resolve_returning_fields(
+  //         this.structure,
+  //         this.returning,
+  //         this.type,
+  //         this.role,
+  //         this.table_name,
+  //         this.table_map
+  //       )
+  //     );
 
-      result =
-        allowedFields.length === 0
-          ? []
-          : after.map((row: Record<string, any>) => {
-              const filtered: Record<string, any> = {};
+  //     result =
+  //       allowedFields.length === 0
+  //         ? []
+  //         : after.map((row: Record<string, any>) => {
+  //             const filtered: Record<string, any> = {};
 
-              for (const field of allowedFields) {
-                if (row != undefined && field in row) {
-                  filtered[field] = row[field];
-                }
-              }
+  //             for (const field of allowedFields) {
+  //               if (row != undefined && field in row) {
+  //                 filtered[field] = row[field];
+  //               }
+  //             }
 
-              return filtered;
-            });
-    }else result = []
-  }
+  //             return filtered;
+  //           });
+  //   }else result = []
+  // }
 
-  return { result, after };
+  // return { result, after };
 }

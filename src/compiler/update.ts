@@ -11,10 +11,10 @@ declare module "./index.js" {
 Compiler.prototype.update = function() {
   if (!this.data) throw new Error("PUT requires data");
 
-  const update_query = this.db.update(this.table).set(this.data)
+  const q = this.db.update(this.table).set(this.data)
   
   if(this.where) {
-    update_query.where(this.where)
+    q.where(this.where)
   }
 
   const orderByFields =
@@ -23,19 +23,19 @@ Compiler.prototype.update = function() {
     [];
 
   if (orderByFields.length > 0) {
-    update_query.orderBy(...orderByFields);
+    q.orderBy(...orderByFields);
   }
 
-  if(this.limit != null) update_query.limit(this.limit)
+  if(this.limit != null) q.limit(this.limit)
 
   let after_function:any = null;
     
-  if(this.returning || has_after_triggers) {
+  if(this.returning || (this.after_triggers && this.after_triggers.length != 0)) {
     let fields = getColumns(this.table)
-    if (typeof update_query.returning === 'function') {
-      update_query.returning(fields);
-    }else if (typeof update_query.$returningId === 'function') {
-      update_query.$returningId(fields);
+    if (typeof q.returning === 'function') {
+      q.returning(fields);
+    }else if (typeof q.$returningId === 'function') {
+      q.$returningId(fields);
       after_function = async (result:any) => {
         if(!result) return
         const fieldName = Object.keys(result[0])[0];
@@ -44,51 +44,49 @@ Compiler.prototype.update = function() {
         const after = await this.db.select().from(table).where(inArray(table[fieldName], values)).execute()
         return after
       }
-    }else if (typeof update_query.output === 'function') {
-      update_query.output(fields);
+    }else if (typeof q.output === 'function') {
+      q.output(fields);
     }
   }
-
-  console.log(update_query.toSQL().sql, update_query.toSQL().params)
     
-  let result = await update_query.execute();
+  this.compiled_query = q;
 
-  let after: any = null;
+  // let after: any = null;
 
-  if (this.returning || has_after_triggers) {
-    if (after_function) {
-      after = await after_function(result);
-    } else {
-      after = result
-    }
-    if(this.returning) {
-      const allowedFields = Object.keys(
-        resolve_returning_fields(
-          this.structure,
-          this.returning,
-          this.type,
-          this.role,
-          this.table_name,
-          this.table_map
-        )
-      );
+  // if (this.returning || has_after_triggers) {
+  //   if (after_function) {
+  //     after = await after_function(result);
+  //   } else {
+  //     after = result
+  //   }
+  //   if(this.returning) {
+  //     const allowedFields = Object.keys(
+  //       resolve_returning_fields(
+  //         this.structure,
+  //         this.returning,
+  //         this.type,
+  //         this.role,
+  //         this.table_name,
+  //         this.table_map
+  //       )
+  //     );
 
-      result =
-        allowedFields.length === 0
-          ? []
-          : after.map((row: Record<string, any>) => {
-              const filtered: Record<string, any> = {};
+  //     result =
+  //       allowedFields.length === 0
+  //         ? []
+  //         : after.map((row: Record<string, any>) => {
+  //             const filtered: Record<string, any> = {};
 
-              for (const field of allowedFields) {
-                if (row != undefined && field in row) {
-                  filtered[field] = row[field];
-                }
-              }
+  //             for (const field of allowedFields) {
+  //               if (row != undefined && field in row) {
+  //                 filtered[field] = row[field];
+  //               }
+  //             }
 
-              return filtered;
-            });
-    }else result = []
-  }
+  //             return filtered;
+  //           });
+  //   }else result = []
+  // }
 
-  return { result, after };
+  // return { result, after };
 }

@@ -423,3 +423,12 @@ export type SubqueryCondition = {
 export const ALL: RolePermissions = { allowed: ["*"], disallowed: [] };
 export const ALL_EXCEPT_ID: RolePermissions = { allowed: ["*"], disallowed: ["id"] };
 export const NONE: RolePermissions = { allowed: [], disallowed: [] };
+
+/* -------------------------------------------------------------------------- */
+/*                           FUNCTION SPECIFIC TYPES                          */
+/* -------------------------------------------------------------------------- */
+
+export type SelectOptions = {
+  select: Record<string, any> | undefined
+  key: string | undefined
+}
