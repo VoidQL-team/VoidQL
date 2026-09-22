@@ -1,4 +1,4 @@
-import { getTableName, SQL } from "drizzle-orm";
+import { getTableName } from "drizzle-orm";
 
 import {
     BuildWhereOptions,
@@ -199,8 +199,8 @@ export class Compiler {
         if(this.compiled && this.compiled.query && "execute" in this.compiled.query && typeof this.compiled.query.execute == "function") {
             this.execute_triggers("before_triggers")
             let before:any = this.compiled.before ? this.compiled.before.execute() : null;
-            const result = await this.compiled.query.execute()
-
+            const query_result = await this.compiled.query.execute()
+            const { result, after } = await this.handle_after(query_result)
             return result
         }
         else throw new Error("Query execution failed")

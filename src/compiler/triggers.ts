@@ -1,11 +1,12 @@
-import { getColumns, inArray } from "drizzle-orm";
 import { Compiler } from "./index.js";
 import { Endpoint } from "../types.js";
+import { resolve_returning_fields } from "../rbac.js";
 
 declare module "./index.js" {
     interface Compiler {
         define_triggers(endpoint: Endpoint):void;
         execute_triggers(type: "before_triggers" | "after_triggers"): Promise<void>;
+        handle_after(result:any): Promise<{after: any, result: any}>
     }
 }
 
@@ -36,4 +37,45 @@ Compiler.prototype.execute_triggers = async function(type: "before_triggers" | "
     for (const trigger of triggers) {
         await trigger.execute();
     }
+}
+
+Compiler.prototype.handle_after = async function (result:any): Promise<{after: any, result: any}> {
+    let after: any = null;
+
+  if (this.returning || (this.after_triggers && this.after_triggers.length != 0)) {
+    if (this.compiled && this.compiled.after_function && typeof this.compiled.after_function == "function") {
+      after = await this.compiled.after_function(result);
+    } else {
+      after = result
+    }
+    if(this.returning) {
+      const allowedFields = Object.keys(
+        resolve_returning_fields(
+          this.structure,
+          this.returning,
+          this.type,
+          this.role,
+          this.table_name,
+          this.table_map
+        )
+      );
+
+      result =
+        allowedFields.length === 0
+          ? []
+          : after.map((row: Record<string, any>) => {
+              const filtered: Record<string, any> = {};
+
+              for (const field of allowedFields) {
+                if (row != undefined && field in row) {
+                  filtered[field] = row[field];
+                }
+              }
+
+              return filtered;
+            });
+    }else result = []
+  }
+
+  return { after, result }
 }

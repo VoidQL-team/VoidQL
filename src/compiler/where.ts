@@ -1,13 +1,15 @@
 import { Compiler } from "./index.js";
-import { ExistsCondition, FieldPermission, NotExistsCondition, WhereCondition } from "../types.js";
+import { ExistsCondition, FieldPermission, IfCondition, NotExistsCondition, WhereCondition } from "../types.js";
 import { and, between, eq, exists, gt, gte, ilike, inArray, isNotNull, isNull, like, lt, lte, ne, not, notBetween, notExists, notIlike, notInArray, notLike, or, SQL, sql } from "drizzle-orm";
 import { alias_selected_fields, is_op_type, requests_data, resolve_fields, resolveCustomValue, validate_where_fields } from "../rbac.js";
+import { has_field_or_col_attribute } from "../drizzle.js";
 
 declare module "./index.js" {
     interface Compiler {
         build_where(cond: WhereCondition, custom_data?:Record<string, any>): any;
         and(conditions:any[]): any;
         or(conditions:any[]): any;
+        if(condition: IfCondition): any;
         exists(condition: ExistsCondition): any;
         not_exists(condition: NotExistsCondition): any;
         in_condition(left:any, right:any): any;
@@ -15,6 +17,7 @@ declare module "./index.js" {
         check_passed(cond: WhereCondition, value:any): SQL | null;
         sanitize_undefined(value:any): null | any;
         build_acl_where(allowed:FieldPermission, disallowed:FieldPermission): WhereCondition | null;
+        validate_policy(): Promise<boolean>;
         define_where(allowed:FieldPermission, disallowed:FieldPermission): void;
         is_allowed_empty(allowed: FieldPermission): boolean;
     }
@@ -43,7 +46,7 @@ Compiler.prototype.build_where = function(cond: WhereCondition, custom_data?:Rec
     return this.or(parts);
   }
   else if('if' in cond && cond.if && "when" in cond.if && cond.if.when != undefined) {
-    return if_conditions(db, cond, tableMap, user, role, structure, query, default_table, this.table_name, before_values, after_values, result_values)
+    return this.if(cond)
   }else if('not' in cond && cond.not != undefined) {
     return not(this.build_where(cond.not))
   }
@@ -241,6 +244,27 @@ Compiler.prototype.or = function(conditions: any[]) {
   return or(...conditions);
 }
 
+Compiler.prototype.if = function(cond: IfCondition) {
+  const build_branch = (branch: IfCondition["if"]["do"] | IfCondition["if"]["else"]) => {
+    if (typeof branch === "function") {
+      throw new Error("Function not allowed in where condition");
+    }
+
+    if (branch && typeof branch === "object" && "type" in branch) {
+      throw new Error("Structured Query not allowed in where condition");
+    }
+
+    const value = branch === undefined ? false : this.build_where(branch);
+    return typeof value === "boolean" ? sql`${value}` : value;
+  };
+
+  const when_condition = this.build_where(cond.if.when);
+  const do_condition = build_branch(cond.if.do);
+  const else_condition = build_branch(cond.if.else);
+
+  return sql<boolean>`CASE WHEN ${when_condition} THEN ${do_condition} ELSE ${else_condition} END`;
+}
+
 Compiler.prototype.exists = function(cond: ExistsCondition) {
   let subTable = null
   let fields:any = null
@@ -402,6 +426,43 @@ Compiler.prototype.build_acl_where = function(allowed: FieldPermission, disallow
   return aclWhere;
 }
 
+Compiler.prototype.validate_policy = async function(): Promise<boolean> {
+  if(typeof this.where == "boolean" || this.where == undefined) {
+    return this.where ?? false
+  }
+  let where = this.build_where(this.where);
+
+  // Start empty SQL object
+  const need_table:boolean = this.query.join ? true : has_field_or_col_attribute(this.where)
+  
+  const check_query = sql<number>`
+    COALESCE(
+      MAX(
+        CASE WHEN ${where} THEN 1 ELSE 0 END
+      ),
+      0
+    ) AS result
+  `;
+
+  const from_table = need_table ? this.table : sql`(select 1) AS t`
+
+  const builded_query = this.db.select({
+    result: check_query
+  }).from(from_table)
+
+  if(this.query.join) this.build_join(builded_query, this.query.join)
+
+  builded_query.limit(1)
+  console.log(builded_query.toSQL().sql, builded_query.toSQL().params)
+  const [rows]: any = await builded_query.execute()
+
+  console.log(rows)
+  const result = rows.result ?? 0;
+
+  // Return as boolean
+  return Boolean(result);
+}
+
 Compiler.prototype.define_where = function(allowed: FieldPermission, disallowed: FieldPermission) {
   const aclWhere = this.build_acl_where(allowed, disallowed);
 
@@ -417,7 +478,7 @@ Compiler.prototype.define_where = function(allowed: FieldPermission, disallowed:
   }
 
   if (this.where && (typeof allowed != 'string' && !Array.isArray(allowed) || typeof disallowed != 'string' && !Array.isArray(disallowed))) {
-      const has_been_accepted = await if_condition(this.db, this.where, this.table_map, this.user, this.role, this.structure, this.query, this.table)
+      const has_been_accepted = await this.validate_policy()
       if (!has_been_accepted) throw new Error("Not allowed or Empty")
   }
 

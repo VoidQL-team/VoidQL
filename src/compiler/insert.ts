@@ -14,7 +14,7 @@ Compiler.prototype.insert = function() {
     .insert(this.table)
     .values(this.select);
   
-  let after_function:any = null;
+  let after_function = undefined;
     
   if(this.returning || (this.after_triggers && this.after_triggers.length != 0)) {
     let fields = getColumns(this.table)
@@ -36,45 +36,7 @@ Compiler.prototype.insert = function() {
   }
     
   this.compiled = {
-    query: q
+    query: q,
+    after_function
   }
-
-  // let after: any = null;
-
-  // if (this.returning || has_after_triggers) {
-  //   if (after_function) {
-  //     after = await after_function(result);
-  //   } else {
-  //     after = result
-  //   }
-  //   if(this.returning) {
-  //     const allowedFields = Object.keys(
-  //       resolve_returning_fields(
-  //         this.structure,
-  //         this.returning,
-  //         this.type,
-  //         this.role,
-  //         this.table_name,
-  //         this.table_map
-  //       )
-  //     );
-
-  //     result =
-  //       allowedFields.length === 0
-  //         ? []
-  //         : after.map((row: Record<string, any>) => {
-  //             const filtered: Record<string, any> = {};
-
-  //             for (const field of allowedFields) {
-  //               if (row != undefined && field in row) {
-  //                 filtered[field] = row[field];
-  //               }
-  //             }
-
-  //             return filtered;
-  //           });
-  //   }else result = []
-  // }
-
-  // return { result, after };
 }
