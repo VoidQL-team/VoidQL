@@ -197,8 +197,9 @@ export class Compiler {
 
     public async execute():Promise<any[] | undefined> {
         if(this.compiled && this.compiled.query && "execute" in this.compiled.query && typeof this.compiled.query.execute == "function") {
-            this.execute_triggers("before_triggers")
-            let before:any = this.compiled.before ? this.compiled.before.execute() : null;
+            await this.validate_policy()
+            await this.execute_triggers("before_triggers")
+            let before:any = this.compiled.before ? await this.compiled.before.execute() : null;
             const query_result = await this.compiled.query.execute()
             const { result, after } = await this.handle_after(query_result)
             return result

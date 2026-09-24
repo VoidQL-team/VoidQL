@@ -50,6 +50,7 @@ Compiler.prototype.update = function() {
   }
     
   this.compiled = {
+    ...this.compiled,
     query: q,
     after_function
   }

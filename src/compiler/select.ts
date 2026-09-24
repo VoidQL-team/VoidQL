@@ -41,6 +41,7 @@ Compiler.prototype.get = function (settings?: SelectOptions) {
 
     const key = settings?.key ? settings.key : "query"
     this.compiled = {
+      ...this.compiled,
       [key]: q
     }
 }

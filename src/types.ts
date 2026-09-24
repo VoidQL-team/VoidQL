@@ -439,6 +439,7 @@ export type SelectOptions = {
 
 export type Compiled = {
   query?: any,
+  policy?: any,
   before?: any,
   after_function?: Function,
   before_triggers?: any[],

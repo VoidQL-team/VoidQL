@@ -17,7 +17,8 @@ declare module "./index.js" {
         check_passed(cond: WhereCondition, value:any): SQL | null;
         sanitize_undefined(value:any): null | any;
         build_acl_where(allowed:FieldPermission, disallowed:FieldPermission): WhereCondition | null;
-        validate_policy(): Promise<boolean>;
+        compile_policy(): void;
+        validate_policy(): Promise<void>
         define_where(allowed:FieldPermission, disallowed:FieldPermission): void;
         is_allowed_empty(allowed: FieldPermission): boolean;
     }
@@ -426,7 +427,7 @@ Compiler.prototype.build_acl_where = function(allowed: FieldPermission, disallow
   return aclWhere;
 }
 
-Compiler.prototype.validate_policy = async function(): Promise<boolean> {
+Compiler.prototype.compile_policy = function() {
   if(typeof this.where == "boolean" || this.where == undefined) {
     return this.where ?? false
   }
@@ -454,13 +455,25 @@ Compiler.prototype.validate_policy = async function(): Promise<boolean> {
 
   builded_query.limit(1)
   console.log(builded_query.toSQL().sql, builded_query.toSQL().params)
-  const [rows]: any = await builded_query.execute()
+
+  this.compiled = {
+    ...this.compiled,
+    policy: builded_query
+  }
+}
+
+Compiler.prototype.validate_policy = async function() {
+  if(!this.compiled || !this.compiled.policy) {
+    throw new Error("Policy validation failed")
+  }
+  const [rows]: any = await this.compiled.policy.execute()
 
   console.log(rows)
   const result = rows.result ?? 0;
 
-  // Return as boolean
-  return Boolean(result);
+  if(!Boolean(result)) {
+    throw new Error("Not allowed or Empty")
+  }
 }
 
 Compiler.prototype.define_where = function(allowed: FieldPermission, disallowed: FieldPermission) {
@@ -478,8 +491,7 @@ Compiler.prototype.define_where = function(allowed: FieldPermission, disallowed:
   }
 
   if (this.where && (typeof allowed != 'string' && !Array.isArray(allowed) || typeof disallowed != 'string' && !Array.isArray(disallowed))) {
-      const has_been_accepted = await this.validate_policy()
-      if (!has_been_accepted) throw new Error("Not allowed or Empty")
+    this.compile_policy()
   }
 
   this.where = this.where ? this.build_where(this.where!) : false

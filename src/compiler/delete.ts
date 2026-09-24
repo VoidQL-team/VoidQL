@@ -39,6 +39,7 @@ Compiler.prototype.delete = function() {
   }
   
   this.compiled = {
+    ...this.compiled,
     query: q
   }
 }

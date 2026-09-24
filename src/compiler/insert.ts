@@ -36,6 +36,7 @@ Compiler.prototype.insert = function() {
   }
     
   this.compiled = {
+    ...this.compiled,
     query: q,
     after_function
   }
