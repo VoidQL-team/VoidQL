@@ -202,6 +202,7 @@ export class Compiler {
             let before:any = this.compiled.before ? await this.compiled.before.execute() : null;
             const query_result = await this.compiled.query.execute()
             const { result, after } = await this.handle_after(query_result)
+            await this.execute_triggers("after_triggers")
             return result
         }
         else throw new Error("Query execution failed")
