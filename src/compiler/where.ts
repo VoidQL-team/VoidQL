@@ -2,7 +2,7 @@ import { Compiler } from "./index.js";
 import { ExistsCondition, FieldPermission, IfCondition, NotExistsCondition, WhereCondition } from "../types.js";
 import { and, between, eq, exists, gt, gte, ilike, inArray, isNotNull, isNull, like, lt, lte, ne, not, notBetween, notExists, notIlike, notInArray, notLike, or, SQL, sql } from "drizzle-orm";
 import { alias_selected_fields, is_op_type, requests_data, resolve_fields, resolveCustomValue, validate_where_fields } from "../rbac.js";
-import { has_field_or_col_attribute } from "../drizzle.js";
+import { has_field_or_col_attribute } from "../old/drizzle.js";
 
 declare module "./index.js" {
     interface Compiler {

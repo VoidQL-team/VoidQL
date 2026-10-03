@@ -22,7 +22,7 @@ import {
     stripPrefixes,
 } from "../rbac.js";
 
-import { VoidQLContext } from "../voidql.js";
+import { VoidQLContext } from "../index.js";
 
 export type CompilerContext = VoidQLContext & {
   query: StructuredQuery;
@@ -83,6 +83,7 @@ export class Compiler {
         this.structure = context.structure;
         this.options = context.options ?? {};
         this.query = context.query;
+        this.data = this.query.data;
         this.before_values = context.before_values;
         this.after_values = context.after_values;
         this.result_values = context.result_values;
@@ -199,10 +200,16 @@ export class Compiler {
         if(this.compiled && this.compiled.query && "execute" in this.compiled.query && typeof this.compiled.query.execute == "function") {
             await this.validate_policy()
             await this.execute_triggers("before_triggers")
+            if (this.type === "POST") this.insert();
+            if (this.type === "PUT") this.update();
             let before:any = this.compiled.before ? await this.compiled.before.execute() : null;
             const query_result = await this.compiled.query.execute()
             const { result, after } = await this.handle_after(query_result)
-            await this.execute_triggers("after_triggers")
+            await this.execute_triggers("after_triggers", {
+                before,
+                after,
+                result,
+            })
             return result
         }
         else throw new Error("Query execution failed")

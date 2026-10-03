@@ -14,8 +14,8 @@ import {
   notBetween,
   getColumns
 } from "drizzle-orm";
-import { type Database, type WhereCondition, type StructuredQuery, type FieldPermission, type Structure, type TableStructure, type RolePermissions, type TriggerStructure, type BuildWhereOptions, type IfCondition, type ExistsCondition, type NotExistsCondition, type Returning, type Transaction, type SetCondition } from "./types.js";
-import { alias_selected_fields, is_op_type, requests_data, resolve_fields, resolve_group_by_fields, resolve_order_by_fields, resolve_returning_fields, resolveCustomValue, toArray } from "./rbac.js";
+import { type Database, type WhereCondition, type StructuredQuery, type FieldPermission, type Structure, type TableStructure, type RolePermissions, type TriggerStructure, type BuildWhereOptions, type IfCondition, type ExistsCondition, type NotExistsCondition, type Returning, type Transaction, type SetCondition } from "../types.js";
+import { alias_selected_fields, is_op_type, requests_data, resolve_fields, resolve_group_by_fields, resolve_order_by_fields, resolve_returning_fields, resolveCustomValue, toArray } from "../rbac.js";
 import { build_query } from "./index.js";
 
 /* -------------------------------------------------------------------------- */

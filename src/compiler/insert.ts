@@ -12,7 +12,7 @@ Compiler.prototype.insert = function() {
 
   const q = this.db
     .insert(this.table)
-    .values(this.select);
+    .values(this.data);
   
   let after_function = undefined;
     
