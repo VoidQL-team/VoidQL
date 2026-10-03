@@ -464,7 +464,7 @@ Compiler.prototype.compile_policy = function() {
 
 Compiler.prototype.validate_policy = async function() {
   if(!this.compiled || !this.compiled.policy) {
-    throw new Error("Policy validation failed")
+    return
   }
   const [rows]: any = await this.compiled.policy.execute()
 
@@ -490,7 +490,7 @@ Compiler.prototype.define_where = function(allowed: FieldPermission, disallowed:
       this.where = aclWhere
   }
 
-  if (this.where && (typeof allowed != 'string' && !Array.isArray(allowed) || typeof disallowed != 'string' && !Array.isArray(disallowed))) {
+  if (this.where) {
     this.compile_policy()
   }
 

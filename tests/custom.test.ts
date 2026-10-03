@@ -1,5 +1,5 @@
 import * as schema from './schema';
-import compile from "../src";
+import { VoidQL } from "../src";
 import { NONE, StructuredQuery, TableStructure } from "../src/types";
 import { it, expect } from "vitest";
 import { getDB } from "./runner/db-connection.mjs"
@@ -49,13 +49,7 @@ it("should measure build and execute performance", async () => {
   // Measure build time
   const buildStart = performance.now();
 
-  const built_query = await compile(
-    db,
-    query,
-    local_user,
-    role,
-    structure
-  );
+  const built_query = await new VoidQL({ db, user: local_user, role, structure }).compile(query);
 
   const buildTime = performance.now() - buildStart;
 

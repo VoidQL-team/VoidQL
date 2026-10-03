@@ -1,5 +1,5 @@
 import { expect } from "vitest";
-import compile from "../../src";
+import { VoidQL } from "../../src";
 
 export default async function selectInSubquery(
   db,
@@ -26,7 +26,7 @@ export default async function selectInSubquery(
     },
   };
 
-  const compiled = await compile(db, request, local_user, role, structure);
+  const compiled = await new VoidQL({ db, user: local_user, role, structure }).compile(request);
   const result = await compiled.execute();
 
   console.log("in subquery result:", result);

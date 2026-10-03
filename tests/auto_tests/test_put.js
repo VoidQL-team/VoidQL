@@ -1,5 +1,5 @@
 import { expect } from "vitest";
-import compile from "../../src";
+import { VoidQL } from "../../src";
 
 export default async function putTest(
   db,
@@ -21,13 +21,7 @@ export default async function putTest(
     returning: ["id", "name"],
   };
 
-  const compiled = await compile(
-    db,
-    request,
-    local_user,
-    role,
-    structure
-  );
+  const compiled = await new VoidQL({ db, user: local_user, role, structure }).compile(request);
 
   const result = await compiled.execute();
 

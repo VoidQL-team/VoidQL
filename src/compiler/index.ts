@@ -12,6 +12,7 @@ import {
     Transaction,
     TriggerStructure,
     WhereCondition,
+    VoidQLContext
 } from "../types.js";
 
 import {
@@ -21,8 +22,6 @@ import {
     resolve_fields,
     stripPrefixes,
 } from "../rbac.js";
-
-import { VoidQLContext } from "../index.js";
 
 export type CompilerContext = VoidQLContext & {
   query: StructuredQuery;
@@ -74,9 +73,7 @@ export class Compiler {
     protected compiled?: Compiled;
 
     constructor(context: CompilerContext) {
-        context.db.transaction(async (tx: Transaction) => {
-            this.db = tx;
-        })
+        this.db = context.db;
         this.user = context.user;
         this.role = context.role;
         this.limit = null

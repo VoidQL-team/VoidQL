@@ -445,3 +445,15 @@ export type Compiled = {
   before_triggers?: any[],
   after_triggers?: any[]
 }
+
+/* -------------------------------------------------------------------------- */
+/*                                   CONTEX                                   */
+/* -------------------------------------------------------------------------- */
+
+export type VoidQLContext = {
+    db: Database | Transaction;
+    user: any;
+    role: string;
+    structure: Structure;
+    options?: BuildWhereOptions;
+};

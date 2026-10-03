@@ -7,7 +7,7 @@ import {
     Structure,
     StructuredQuery,
     Transaction,
-    WhereCondition,
+    VoidQLContext,
 } from "./types.js";
 import { Compiler } from "./compiler/index.js";
 import "./compiler/where.js";
@@ -16,14 +16,6 @@ import "./compiler/insert.js";
 import "./compiler/update.js";
 import "./compiler/delete.js";
 import "./compiler/triggers.js";
-
-export type VoidQLContext = {
-    db: Database | Transaction;
-    user: any;
-    role: string;
-    structure: Structure;
-    options?: BuildWhereOptions;
-};
 
 export class VoidQL {
     protected readonly db: Database | Transaction;
@@ -88,7 +80,7 @@ export class VoidQL {
         db: Database | Transaction = this.db,
         before_values?: any | any[],
         after_values?: any | any[],
-        result_values?: any | any[]
+        result_values?: any | any[],
     ) {
         return new Compiler({
             db,
@@ -99,7 +91,7 @@ export class VoidQL {
             query,
             before_values,
             after_values,
-            result_values,
+            result_values
         });
     }
 
@@ -142,7 +134,7 @@ export class VoidQL {
                             data: await this.db.transaction(async (tx: Transaction) => {
                                 const plans = await Promise.all(
                                     phase.queries.map((query) =>
-                                        this.build_query(query, tx)
+                                        this.build_query(query, tx, undefined, undefined, undefined)
                                     )
                                 );
 
