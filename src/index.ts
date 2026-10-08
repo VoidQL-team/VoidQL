@@ -17,6 +17,20 @@ import "./compiler/update.js";
 import "./compiler/delete.js";
 import "./compiler/triggers.js";
 
+function normalizeError(error: unknown): string {
+    const value = error && typeof error === "object"
+        ? error as Record<string, unknown>
+        : undefined;
+
+    return error instanceof Error
+        ? error.message
+        : typeof error === "string"
+            ? error
+            : typeof value?.message === "string"
+                ? value.message
+                : String(error);
+}
+
 export class VoidQL {
     protected readonly db: Database | Transaction;
     protected readonly user: any;
@@ -45,10 +59,16 @@ export class VoidQL {
                     const results = await Promise.all(
                         parts.map((part) => part.execute())
                     );
+                    const errors = results.flatMap((result) =>
+                        result.error
+                            ? Array.isArray(result.error) ? result.error : [result.error]
+                            : []
+                    );
 
                     return {
                         ok: results.every((r: any) => r.ok),
-                        data: results
+                        data: results,
+                        error: errors.length ? errors : undefined
                     };
                 }
             };
@@ -66,7 +86,7 @@ export class VoidQL {
                 } catch (err) {
                     return {
                         ok: false,
-                        error: err
+                        error: normalizeError(err)
                     };
                 }
             }
@@ -114,7 +134,7 @@ export class VoidQL {
                                 await this.execute(query)
                             );
                         } catch (err) {
-                            errors.push(err);
+                            errors.push(normalizeError(err));
                         }
                     }
 
@@ -148,7 +168,7 @@ export class VoidQL {
                     } catch (err) {
                         return {
                             ok: false,
-                            error: err
+                            error: normalizeError(err)
                         };
                     }
                 }

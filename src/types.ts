@@ -230,7 +230,7 @@ export type SafeOperator = typeof BASIC_OPERATORS[number];
 export type CompileExecutionResult<T = any> = {
   ok: boolean;
   data?: T[];
-  error?: unknown[] | unknown;
+  error?: string[] | string;
 };
 
 export type ExecuteFunction<T = any> = () => Promise<CompileExecutionResult<T>>;
