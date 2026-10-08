@@ -17,7 +17,7 @@ declare module "./index.js" {
         check_passed(cond: WhereCondition, value:any): SQL | null;
         sanitize_undefined(value:any): null | any;
         build_acl_where(allowed:FieldPermission, disallowed:FieldPermission): WhereCondition | null;
-        compile_policy(): void;
+        compile_policy(): WhereCondition | boolean;
         validate_policy(): Promise<void>
         define_where(allowed:FieldPermission, disallowed:FieldPermission): void;
         is_allowed_empty(allowed: FieldPermission): boolean;
@@ -460,6 +460,8 @@ Compiler.prototype.compile_policy = function() {
     ...this.compiled,
     policy: builded_query
   }
+
+  return where
 }
 
 Compiler.prototype.validate_policy = async function() {
@@ -491,8 +493,6 @@ Compiler.prototype.define_where = function(allowed: FieldPermission, disallowed:
   }
 
   if (this.where) {
-    this.compile_policy()
-  }
-
-  this.where = this.where ? this.build_where(this.where!) : false
+    this.where = this.compile_policy()
+  }else this.where = false
 }

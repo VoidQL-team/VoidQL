@@ -87,6 +87,7 @@ export class Compiler {
         this.returning = this.query.returning;
         this.order_by = this.query.order_by;
         this.group_by = this.query.group_by;
+        this.where = this.query.where;
 
         /* -------------------------------------------------------------------------- */
         /*                              TABLE RETRIEVING                              */
@@ -197,8 +198,6 @@ export class Compiler {
         if(this.compiled && this.compiled.query && "execute" in this.compiled.query && typeof this.compiled.query.execute == "function") {
             await this.validate_policy()
             await this.execute_triggers("before_triggers")
-            if (this.type === "POST") this.insert();
-            if (this.type === "PUT") this.update();
             let before:any = this.compiled.before ? await this.compiled.before.execute() : null;
             const query_result = await this.compiled.query.execute()
             const { result, after } = await this.handle_after(query_result)

@@ -441,6 +441,7 @@ export type Compiled = {
   query?: any,
   policy?: any,
   before?: any,
+  where?:any,
   after_function?: Function,
   before_triggers?: any[],
   after_triggers?: any[]

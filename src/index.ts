@@ -54,12 +54,10 @@ export class VoidQL {
             };
         }
 
-        const single = this.build_query(request as StructuredQuery);
-
         return {
-            async execute() {
+            execute: async () => {
                 try {
-                    const res = await single.execute();
+                    const res = await this.execute(request as StructuredQuery);
 
                     return {
                         ok: true,
@@ -73,6 +71,12 @@ export class VoidQL {
                 }
             }
         };
+    }
+
+    protected execute(query: StructuredQuery) {
+        return this.db.transaction(async (tx: Transaction) =>
+            this.build_query(query, tx).execute()
+        );
     }
 
     protected build_query(
@@ -99,18 +103,16 @@ export class VoidQL {
         const mode = phase.mode.toUpperCase();
 
         if (mode === "QUERY") {
-            const plans = await Promise.all(
-                phase.queries.map((query) => this.build_query(query))
-            );
-
             return {
                 execute: async () => {
                     const results = [];
                     const errors = [];
 
-                    for (const plan of plans) {
+                    for (const query of phase.queries) {
                         try {
-                            results.push(await plan.execute());
+                            results.push(
+                                await this.execute(query)
+                            );
                         } catch (err) {
                             errors.push(err);
                         }
