@@ -1,6 +1,5 @@
 import { and, eq } from "drizzle-orm";
 import { Compiler } from "./index.js";
-import { resolve_group_by_fields, resolve_order_by_fields, toArray } from "./rbac.js";
 import { Join, SelectOptions, WhereCondition } from "../types.js";
 
 declare module "./index.js" {
@@ -20,8 +19,8 @@ Compiler.prototype.get = function (settings?: SelectOptions) {
     if (this.where) q.where(this.where);
 
     const groupByFields =
-        resolve_group_by_fields(this.structure, toArray(this.group_by), this.type, this.role, this.table_name, this.table_map) ??
-        toArray(this.role_permissions?.group_by) ??
+        this.resolve_group_by_fields() ??
+        this.to_array(this.role_permissions?.group_by) ??
         [];
 
     if (groupByFields.length > 0) {
@@ -29,8 +28,8 @@ Compiler.prototype.get = function (settings?: SelectOptions) {
     }
 
     const orderByFields =
-        resolve_order_by_fields(this.structure, toArray(this.order_by), this.type, this.role, this.table_name, this.table_map) ??
-        toArray(this.role_permissions?.order_by) ??
+        this.resolve_order_by_fields() ??
+        this.to_array(this.role_permissions?.order_by) ??
         [];
 
     if (orderByFields.length > 0) {

@@ -15,11 +15,6 @@ import {
     VoidQLContext
 } from "../types.js";
 
-import {
-    resolve_data,
-    stripPrefixes,
-} from "./rbac.js";
-
 export type CompilerContext = VoidQLContext & {
   query: StructuredQuery;
   before_values?: any | any[];
@@ -263,21 +258,7 @@ export class Compiler {
                 }
 
                 this.data = this.validate_fields(
-                    stripPrefixes(
-                        resolve_data(
-                            this.structure,
-                            this.user,
-                            this.query,
-                            this.data,
-                            this.type,
-                            this.role,
-                            this.query.table,
-                            this.table_map,
-                            this.before_values,
-                            this.after_values,
-                            this.result_values
-                        )
-                    )
+                    this.strip_prefixes(this.resolve_data(this.data))
                 );
 
                 break;

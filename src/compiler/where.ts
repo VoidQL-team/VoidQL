@@ -1,7 +1,7 @@
 import { Compiler } from "./index.js";
 import { ExistsCondition, FieldPermission, IfCondition, NotExistsCondition, WhereCondition } from "../types.js";
 import { and, between, eq, exists, gt, gte, ilike, inArray, isNotNull, isNull, like, lt, lte, ne, not, notBetween, notExists, notIlike, notInArray, notLike, or, SQL, sql } from "drizzle-orm";
-import { is_op_type, requests_data, resolveCustomValue } from "./rbac.js";
+import { is_op_type, resolveCustomValue } from "./rbac.js";
 
 type BuiltWhere = {
   condition: any;
@@ -107,7 +107,7 @@ Compiler.prototype.build_where = function(cond: WhereCondition, custom_data?:Rec
   if (
     !custom_data &&
     !("if" in cond) &&
-    requests_data(cond, "before") &&
+    this.requests_data(cond, "before") &&
     this.before_values &&
     Array.isArray(this.before_values)
   ) {
@@ -120,7 +120,7 @@ Compiler.prototype.build_where = function(cond: WhereCondition, custom_data?:Rec
   } else if (
     !custom_data &&
     !("if" in cond) &&
-    requests_data(cond, "after") &&
+    this.requests_data(cond, "after") &&
     this.after_values &&
     Array.isArray(this.after_values)
   ) {
@@ -133,7 +133,7 @@ Compiler.prototype.build_where = function(cond: WhereCondition, custom_data?:Rec
   } else if (
     !custom_data &&
     !("if" in cond) &&
-    requests_data(cond, "result") &&
+    this.requests_data(cond, "result") &&
     this.result_values &&
     Array.isArray(this.result_values)
   ) {
@@ -146,7 +146,7 @@ Compiler.prototype.build_where = function(cond: WhereCondition, custom_data?:Rec
   } else if (
     !custom_data &&
     !("if" in cond) &&
-    requests_data(cond, "data") &&
+    this.requests_data(cond, "data") &&
     this.data &&
     Array.isArray(this.data)
   ) {

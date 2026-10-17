@@ -8,7 +8,14 @@ declare module "./index.js" {
     alias_selected_fields(fields: Record<string, any>): Record<string, any>
     extract_table_map(): Record<string, Table>;
     is_allowed_field(entry: string): boolean;
-    resolve_fields(fields: string | string[], type: string, default_table: string):Record<string, any>
+    resolve_fields(fields: string | string[], type: string, default_table: string): Record<string, any>;
+    resolve_returning_fields(): Record<string, any>;
+    resolve_group_by_fields(): any[];
+    resolve_order_by_fields(): any[];
+    to_array<T>(value: T | T[] | null | undefined): T[];
+    strip_prefixes(input: any): any;
+    resolve_data(fields: any): Record<string, any> | Array<Record<string, any>>;
+    requests_data(cond: WhereCondition, kind: string): boolean
   }
 }
 
@@ -93,7 +100,7 @@ const AGGREGATES = new Set<AggregateOp>([
     "MAX",
 ]);
 
-function applyAggregate(
+function apply_aggregate(
     parameter: any,
     aggregate: AggregateOp | null
 ): any {
@@ -169,7 +176,6 @@ function get_custom_field(rawEntry: string): ParsedField {
     };
 }
 
-// * Resolve allowed fields
 Compiler.prototype.resolve_fields = function(
     fields: string | string[],
     type: string,
@@ -232,7 +238,7 @@ Compiler.prototype.resolve_fields = function(
                 ? `${aggregate}.${table}.${fieldName}`
                 : `${table}.${fieldName}`;
 
-                allowedFields[key] = applyAggregate(fieldRef, aggregate);
+                allowedFields[key] = apply_aggregate(fieldRef, aggregate);
         };
 
         if (field === "*") {
@@ -247,19 +253,12 @@ Compiler.prototype.resolve_fields = function(
     return allowedFields;
 }
 
-export function resolve_returning_fields(
-    structure: Structure,
-    fields: string | string[],
-    type: string,
-    role: string,
-    defaultTable: string,
-    tableMap: Record<string, Record<string, any>>
-) {
+Compiler.prototype.resolve_returning_fields = function() {
     const allowedFields: Record<string, any> = {};
 
-    if (!fields) return allowedFields;
+    if (!this.returning) return allowedFields;
 
-    const entries = Array.isArray(fields) ? fields : [fields];
+    const entries = Array.isArray(this.returning) ? this.returning : [this.returning];
 
     for (const rawEntry of entries) {
         // hard disable count
@@ -275,19 +274,19 @@ export function resolve_returning_fields(
 
         const [table, field] = entry.includes(".")
             ? entry.split(".")
-            : [defaultTable, entry];
+            : [this.table_name, entry];
 
-        const tableStruct = structure[table];
+        const tableStruct = this.structure[table];
         if (!tableStruct) {
             throw new Error(`Unknown table '${table}'`);
         }
 
-        const endpoint = tableStruct.endpoints.find(e => e.type.toUpperCase() === type.toUpperCase());
+        const endpoint = tableStruct.endpoints.find(e => e.type.toUpperCase() === this.type.toUpperCase());
         if (!endpoint) {
-            throw new Error(`${type} not allowed on ${table}`);
+            throw new Error(`${this.type} not allowed on ${table}`);
         }
 
-        const permissions = endpoint[role];
+        const permissions = endpoint[this.role];
 
         if (
             !permissions ||
@@ -299,7 +298,7 @@ export function resolve_returning_fields(
 
         const returning = permissions.returning;
 
-        const tableFields = tableMap[table];
+        const tableFields = this.table_map[table];
 
         if (!tableFields) {
             throw new Error(`Unknown table '${table}' in tableMap`);
@@ -370,15 +369,10 @@ export function resolve_returning_fields(
     return allowedFields;
 }
 
-export function resolve_group_by_fields(
-  structure: Structure,
-  fields: any,
-  type: string,
-  role: string,
-  default_table: string,
-  tableMap: Record<string, Record<string, any>>
-) {
+Compiler.prototype.resolve_group_by_fields = function() {
   const result: any[] = [];
+
+  const fields = this.to_array(this.group_by)
 
   if (!fields) return result;
 
@@ -388,7 +382,7 @@ export function resolve_group_by_fields(
       ? [fields]
       : [];
 
-  function resolve(entry: string) {
+  const resolve = (entry: string) => {
     if (typeof entry !== "string") return;
 
     let raw = entry.trim();
@@ -414,17 +408,17 @@ export function resolve_group_by_fields(
     if (raw.includes(".")) {
       [table, field] = raw.split(".");
     } else {
-      table = default_table;
+      table = this.table_name;
       field = raw;
     }
 
-    const tableStruct = structure[table];
+    const tableStruct = this.structure[table];
     if (!tableStruct) throw new Error(`Unknown table '${table}'`);
 
-    const endpoint = tableStruct.endpoints.find(e => e.type.toUpperCase() === type.toUpperCase());
-    if (!endpoint) throw new Error(`${type} not allowed on ${table}`);
+    const endpoint = tableStruct.endpoints.find(e => e.type.toUpperCase() === this.type.toUpperCase());
+    if (!endpoint) throw new Error(`${this.type} not allowed on ${table}`);
 
-    const rolePermissions = endpoint[role];
+    const rolePermissions = endpoint[this.role];
     if (!rolePermissions || typeof rolePermissions !== "object") return;
 
     const allowed =
@@ -447,7 +441,7 @@ export function resolve_group_by_fields(
     // -----------------------------
     // existence check
     // -----------------------------
-    const column = tableMap[table]?.[field];
+    const column = this.table_map[table]?.[field];
     if (!column) {
       throw new Error(`Invalid group_by column: ${table}.${field}`);
     }
@@ -460,15 +454,10 @@ export function resolve_group_by_fields(
   return result;
 }
 
-export function resolve_order_by_fields(
-    structure: Structure,
-    fields: any,
-    type: string,
-    role: string,
-    default_table: string,
-    tableMap: Record<string, Record<string, any>>
-) {
+Compiler.prototype.resolve_order_by_fields = function() {
     const resolved_fields: any[] = [];
+
+    const fields = this.to_array(this.order_by);
 
     if (!fields || (typeof fields !== "string" && !Array.isArray(fields))) {
         return resolved_fields;
@@ -476,7 +465,7 @@ export function resolve_order_by_fields(
 
     const keys = Array.isArray(fields) ? fields : [fields];
 
-    function resolve_field(entry: string) {
+    const resolve_field =(entry: string) => {
         if (typeof entry !== "string") return;
 
         let direction: "ASC" | "DESC" = "ASC";
@@ -520,7 +509,7 @@ export function resolve_order_by_fields(
         if (raw.includes(".")) {
             [table, field] = raw.split(".");
         } else {
-            table = default_table;
+            table = this.table_name;
             field = raw;
         }
 
@@ -528,7 +517,7 @@ export function resolve_order_by_fields(
         // Validate table
         // -----------------------------------
 
-        const tableStruct = structure[table];
+        const tableStruct = this.structure[table];
 
         if (!tableStruct) {
             throw new Error(`Unknown table '${table}'`);
@@ -539,18 +528,18 @@ export function resolve_order_by_fields(
         // -----------------------------------
 
         const endpoint = tableStruct.endpoints.find(
-            (e) => e.type.toUpperCase() === type.toUpperCase()
+            (e) => e.type.toUpperCase() === this.type.toUpperCase()
         );
 
         if (!endpoint) {
-            throw new Error(`${type} not allowed on ${table}`);
+            throw new Error(`${this.type} not allowed on ${table}`);
         }
 
         // -----------------------------------
         // Validate role permissions
         // -----------------------------------
 
-        const rolePermissions = endpoint[role];
+        const rolePermissions = endpoint[this.role];
 
         if (
             typeof rolePermissions !== "object" ||
@@ -592,13 +581,13 @@ export function resolve_order_by_fields(
         // Validate field existence
         // -----------------------------------
 
-        if (!(field in tableMap[table])) {
+        if (!(field in this.table_map[table])) {
             throw new Error(
                 `Field '${field}' does not exist on table '${table}'`
             );
         }
 
-        const field_reference = tableMap[table][field];
+        const field_reference = this.table_map[table][field];
 
         // -----------------------------------
         // Build drizzle order expression
@@ -618,7 +607,7 @@ export function resolve_order_by_fields(
     return resolved_fields;
 }
 
-export function toArray<T>(v: T | T[] | null | undefined): T[] {
+Compiler.prototype.to_array = function<T>(v: T | T[] | null | undefined): T[] {
   if (!v) return [];
   return Array.isArray(v) ? v : [v];
 }
@@ -655,7 +644,7 @@ function matchesPermission(
 	return false;
 }
 
-export function resolve_allowed_fields(
+function resolve_allowed_fields(
 	field: string,
 	allowed?: FieldPermission,
 	disallowed?: FieldPermission
@@ -680,10 +669,10 @@ export function resolve_allowed_fields(
 /* -------------------------------------------------------------------------- */
 /*                   REMOVE PREFIXES FROM RETURNED STRUCTURE                  */
 /* -------------------------------------------------------------------------- */
-export function stripPrefixes(input: any): any {
+Compiler.prototype.strip_prefixes = function(input: any) {
     // * Handle arrays
     if (Array.isArray(input)) {
-        return input.map(stripPrefixes);
+        return input.map((value)=>{this.strip_prefixes(value)});
     }
 
     // * Handle objects (but not null)
@@ -695,7 +684,7 @@ export function stripPrefixes(input: any): any {
             if (Object.prototype.hasOwnProperty.call(cleaned, cleanKey)) {
                 cleanKey = key.includes(".") ? key.replace(".", "_") : `${key}_${value}`;
             }
-            cleaned[cleanKey] = stripPrefixes(value);
+            cleaned[cleanKey] = this.strip_prefixes(value);
         }
 
         return cleaned;
@@ -709,7 +698,7 @@ export function stripPrefixes(input: any): any {
 /*                                DATA RESOLVE                                */
 /* -------------------------------------------------------------------------- */
 // * Simply checks if value passed is undefined
-export function is_undefined(v: any) {
+function is_undefined(v: any) {
     if (v === undefined) throw new Error(`Undefined value not supported`);
     return v;
 }
@@ -803,35 +792,11 @@ function resolveColRef(
   return { table, field };
 }
 
-export function resolve_data(
-    structure: Structure,
-    user: any,
-    query: StructuredQuery,
-    fields: any,
-    type: string,
-    role: string,
-    default_table: string,
-    tableMap: Record<string, Record<string, any>>, 
-    before_values?: any | any[], 
-    after_values?: any | any[], 
-    result_values?: any | any[]
-): Record<string, any> | Array<Record<string, any>> {
+Compiler.prototype.resolve_data = function(fields: any): Record<string, any> | Array<Record<string, any>> {
 
     if (Array.isArray(fields)) {
         return fields.flatMap((item) =>
-            resolve_data(
-                structure,
-                user,
-                query,
-                item,
-                type,
-                role,
-                default_table,
-                tableMap,
-                before_values,
-                after_values,
-                result_values
-            )
+            this.resolve_data(item)
         );
     }
 
@@ -839,22 +804,22 @@ export function resolve_data(
         return {};
     }
 
-    const normalizedBefore = Array.isArray(before_values)
-        ? before_values
-        : before_values !== undefined
-            ? [before_values]
+    const normalizedBefore = Array.isArray(this.before_values)
+        ? this.before_values
+        : this.before_values !== undefined
+            ? [this.before_values]
             : [];
 
-    const normalizedAfter = Array.isArray(after_values)
-        ? after_values
-        : after_values !== undefined
-            ? [after_values]
+    const normalizedAfter = Array.isArray(this.after_values)
+        ? this.after_values
+        : this.after_values !== undefined
+            ? [this.after_values]
             : [];
 
-    const normalizedResult = Array.isArray(result_values)
-        ? result_values
-        : result_values !== undefined
-            ? [result_values]
+    const normalizedResult = Array.isArray(this.result_values)
+        ? this.result_values
+        : this.result_values !== undefined
+            ? [this.result_values]
             : [];
 
     const maxValues = Math.max(
@@ -872,21 +837,21 @@ export function resolve_data(
     for (const [entry, value] of Object.entries(fields)) {
         const [rawTable, rawField] = entry.includes(".")
             ? entry.split(".")
-            : [default_table, entry];
+            : [this.table_name, entry];
 
         const table = rawTable;
         const field = rawField;
 
         // schema validation
-        if (!tableMap[table] || !(field in tableMap[table])) {
+        if (!this.table_map[table] || !(field in this.table_map[table])) {
             throw new Error(
                 `Field '${field}' does not exist on table '${table}'`
             );
         }
 
         // endpoint + permissions
-        const endpoint = getEndpoint(structure, table, type);
-        const permissions = getPermissions(endpoint, role);
+        const endpoint = getEndpoint(this.structure, table, this.type);
+        const permissions = getPermissions(endpoint, this.role);
 
         if (!permissions) continue;
 
@@ -902,12 +867,12 @@ export function resolve_data(
 
             const { table: vTbl, field: vCol } = resolveColRef(
                 colRef,
-                default_table,
-                tableMap
+                this.table_name,
+                this.table_map
             );
 
-            const vEndpoint = getEndpoint(structure, vTbl, type);
-            const vPermissions = getPermissions(vEndpoint, role);
+            const vEndpoint = getEndpoint(this.structure, vTbl, this.type);
+            const vPermissions = getPermissions(vEndpoint, this.role);
 
             if (!vPermissions) continue;
 
@@ -927,25 +892,25 @@ export function resolve_data(
         if (isDataRef(value, "before")) {
             results = results.map((item, index) => ({
                 ...item,
-                [entry]: resolveCustomValue(value, user, query, tableMap, default_table, normalizedBefore[index]) ?? null
+                [entry]: resolveCustomValue(value, this.user, this.query, this.table_map, this.table_name, normalizedBefore[index]) ?? null
             }));
 
         } else if (isDataRef(value, "after")) {
             results = results.map((item, index) => ({
                 ...item,
-                [entry]: resolveCustomValue(value, user, query, tableMap, default_table, normalizedAfter[index]) ?? null
+                [entry]: resolveCustomValue(value, this.user, this.query, this.table_map, this.table_name, normalizedAfter[index]) ?? null
             }));
 
         } else if (isDataRef(value, "result")) {
             results = results.map((item, index) => ({
                 ...item,
-                [entry]: resolveCustomValue(value, user, query, tableMap, default_table, normalizedResult[index]) ?? null
+                [entry]: resolveCustomValue(value, this.user, this.query, this.table_map, this.table_name, normalizedResult[index]) ?? null
             }));
 
         } else {
             results = results.map((item) => ({
                 ...item,
-                [entry]: resolveCustomValue(value, user, query, tableMap, default_table)
+                [entry]: resolveCustomValue(value, this.user, this.query, this.table_map, this.table_name)
             }));
         }
     }
@@ -955,10 +920,7 @@ export function resolve_data(
         : results;
 }
 
-export function requests_data(
-    cond: WhereCondition,
-    kind: string
-): boolean {
+Compiler.prototype.requests_data = function(cond: WhereCondition, kind: string): boolean {
     return Object.entries(cond).some(([_, value]) => {
         if (typeof value === "string") {
             return isDataRef(value, kind);

@@ -13,7 +13,7 @@ import {
   type TriggerStructure,
   type WhereCondition,
 } from "../types.js";
-import { resolve_returning_fields, resolveCustomValue } from "./rbac.js";
+import { resolveCustomValue } from "./rbac.js";
 import { if_condition } from "../old/drizzle.ts.old";
 
 type TriggerValues = {
@@ -186,14 +186,7 @@ Compiler.prototype.handle_after = async function(result: any): Promise<{ after: 
 
     if (this.returning) {
       const allowedFields = Object.keys(
-        resolve_returning_fields(
-          this.structure,
-          this.returning,
-          this.type,
-          this.role,
-          this.table_name,
-          this.table_map,
-        ),
+        this.resolve_returning_fields(),
       );
 
       result =

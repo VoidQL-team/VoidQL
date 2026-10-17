@@ -1,5 +1,4 @@
 import { getColumns, inArray } from "drizzle-orm";
-import { resolve_order_by_fields, toArray } from "./rbac.js";
 import { Compiler } from "./index.js";
 
 declare module "./index.js" {
@@ -18,8 +17,8 @@ Compiler.prototype.update = function() {
   }
 
   const orderByFields =
-    resolve_order_by_fields(this.structure, toArray(this.order_by), this.type, this.role, this.table_name, this.table_map) ??
-    toArray(this.role_permissions?.order_by) ??
+    this.resolve_order_by_fields() ??
+    this.to_array(this.role_permissions?.order_by) ??
     [];
 
   if (orderByFields.length > 0) {
