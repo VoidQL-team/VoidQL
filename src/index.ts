@@ -48,17 +48,18 @@ export class VoidQL {
 
     async compile(request: Request): Promise<CompileResult<any>> {
         if ("phases" in request && request.phases) {
-            const parts = await Promise.all(
-                request.phases.map((phase) =>
-                    this.build_batch(phase)
-                )
+            const parts = request.phases.map((phase) =>
+                this.build_batch(phase)
             );
 
             return {
                 async execute() {
-                    const results = await Promise.all(
-                        parts.map((part) => part.execute())
-                    );
+                    const results = [];
+
+                    for (const part of parts) {
+                        results.push(await part.execute());
+                    }
+
                     const errors = results.flatMap((result) =>
                         result.error
                             ? Array.isArray(result.error) ? result.error : [result.error]
@@ -74,10 +75,12 @@ export class VoidQL {
             };
         }
 
+        const single = this.build_query(request as StructuredQuery);
+
         return {
             execute: async () => {
                 try {
-                    const res = await this.execute(request as StructuredQuery);
+                    const res = await single.execute();
 
                     return {
                         ok: true,
@@ -93,11 +96,11 @@ export class VoidQL {
         };
     }
 
-    protected execute(query: StructuredQuery) {
-        return this.db.transaction(async (tx: Transaction) =>
-            this.build_query(query, tx).execute()
-        );
-    }
+    // protected execute(query: StructuredQuery) {
+    //     return this.db.transaction(async (tx: Transaction) =>
+    //         this.build_query(query, tx).execute()
+    //     );
+    // }
 
     protected build_query(
         query: StructuredQuery,
@@ -119,19 +122,21 @@ export class VoidQL {
         });
     }
 
-    protected async build_batch(phase: QueryPhase) {
+    protected build_batch(phase: QueryPhase) {
         const mode = phase.mode.toUpperCase();
 
         if (mode === "QUERY") {
+            const plans = phase.queries.map((query) => this.build_query(query));
+
             return {
                 execute: async () => {
                     const results = [];
                     const errors = [];
 
-                    for (const query of phase.queries) {
+                    for (const plan of plans) {
                         try {
                             results.push(
-                                await this.execute(query)
+                                await plan.execute()
                             );
                         } catch (err) {
                             errors.push(normalizeError(err));
@@ -154,15 +159,19 @@ export class VoidQL {
                         return {
                             ok: true,
                             data: await this.db.transaction(async (tx: Transaction) => {
-                                const plans = await Promise.all(
-                                    phase.queries.map((query) =>
-                                        this.build_query(query, tx, undefined, undefined, undefined)
-                                    )
-                                );
+                                const plans = [];
 
-                                return Promise.all(
-                                    plans.map((plan) => plan.execute())
-                                );
+                                for (const query of phase.queries) {
+                                    plans.push(this.build_query(query, tx, undefined, undefined, undefined));
+                                }
+
+                                const results = [];
+
+                                for (const plan of plans) {
+                                    results.push(await plan.execute());
+                                }
+
+                                return results;
                             })
                         };
                     } catch (err) {

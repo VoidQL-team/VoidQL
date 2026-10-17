@@ -50,4 +50,10 @@ export default async function phasedTransaction(
   expect(result).toBeDefined();
   expect(result.ok).toBe(true);
   expect(Array.isArray(result.data)).toBe(true);
+  expect(result.data).toHaveLength(1);
+  expect(result.data[0].data).toHaveLength(2);
+  expect(result.data[0].data[0][0].email).toBe(email);
+  expect(result.data[0].data[0][0]).toHaveProperty("id");
+  expect(result.data[0].data[1][0].email).toBe(email);
+  expect(result.data[0].data[1][0]).not.toHaveProperty("id");
 }
