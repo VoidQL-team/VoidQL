@@ -17,7 +17,6 @@ import {
 
 import {
     resolve_data,
-    resolve_fields,
     stripPrefixes,
 } from "./rbac.js";
 
@@ -232,13 +231,10 @@ export class Compiler {
 
                 this.select = this.validate_fields(
                     this.alias_selected_fields(
-                        resolve_fields(
-                            this.structure,
+                        this.resolve_fields(
                             this.query.select,
                             this.type,
-                            this.role,
                             this.query.table,
-                            this.table_map
                         )
                     )
                 );
@@ -249,13 +245,10 @@ export class Compiler {
             case "DELETE": {
                 this.select = this.validate_fields(
                     this.alias_selected_fields(
-                        resolve_fields(
-                            this.structure,
+                        this.resolve_fields(
                             "*",
                             this.type,
-                            this.role,
                             this.query.table,
-                            this.table_map
                         )
                     )
                 );

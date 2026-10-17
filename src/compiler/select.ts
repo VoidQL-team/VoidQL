@@ -77,7 +77,7 @@ Compiler.prototype.build_join = function(q: any, joins: Join[]) {
     // Support object with AND/OR inside 'on'
     if (isWhereCondition(j.on)) {
       // Complex condition
-      joinCondition = this.build_where(j.on)
+      joinCondition = this.build_where(j.on).condition
     } else {
       // Simple key-value mapping
       const conditions: any[] = [];

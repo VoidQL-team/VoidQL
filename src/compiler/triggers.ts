@@ -237,7 +237,7 @@ Compiler.prototype.build_triggers = async function(
     tableStruct: this.table_structure,
     data: this.data,
     buildWhere: (condition, customData) =>
-      this.build_where(condition as WhereCondition, customData),
+      this.build_where(condition as WhereCondition, customData).condition,
     buildQuery: (query, triggerValues) =>
       new Compiler({
         db: this.db,

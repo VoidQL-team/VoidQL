@@ -7,6 +7,8 @@ declare module "./index.js" {
   interface Compiler {
     alias_selected_fields(fields: Record<string, any>): Record<string, any>
     extract_table_map(): Record<string, Table>;
+    is_allowed_field(entry: string): boolean;
+    resolve_fields(fields: string | string[], type: string, default_table: string):Record<string, any>
   }
 }
 
@@ -21,23 +23,23 @@ Compiler.prototype.alias_selected_fields = function (fields: Record<string, any>
   return aliased;
 }
 
-export function is_allowed_field(entry:string, default_table:string, structure: Structure, type:string, role:string, tableMap: Record<string, Record<string, any>>):boolean {
+Compiler.prototype.is_allowed_field = function(entry:string):boolean {
     let table: string;
     let field: string;
 
     if (entry.includes(".")) [table, field] = entry.split(".");
     else {
-        table = default_table;
+        table = this.table_name;
         field = entry;
     }
 
-    const tableStruct = structure[table];
+    const tableStruct = this.structure[table];
     if (!tableStruct) throw new Error(`Unknown table '${table}'`);
 
-    const endpoint = tableStruct.endpoints.find(e => e.type.toUpperCase() === type.toUpperCase());
-    if (!endpoint) throw new Error(`${type} not allowed on ${table}`);
+    const endpoint = tableStruct.endpoints.find(e => e.type.toUpperCase() === this.type.toUpperCase());
+    if (!endpoint) throw new Error(`${this.type} not allowed on ${table}`);
 
-    const rolePermissions = endpoint[role];
+    const rolePermissions = endpoint[this.role];
     if (typeof rolePermissions !== "object" || !rolePermissions || Array.isArray(rolePermissions)) {
         return false;
     }
@@ -61,7 +63,7 @@ export function is_allowed_field(entry:string, default_table:string, structure: 
         console.log("REMOVED: ",field)
         return false
     };
-    if (!(field in tableMap[table])) throw new Error(`Field '${field}' does not exist on table '${table}'`);
+    if (!(field in this.table_map[table])) throw new Error(`Field '${field}' does not exist on table '${table}'`);
     return true
 }
 
@@ -168,13 +170,10 @@ function get_custom_field(rawEntry: string): ParsedField {
 }
 
 // * Resolve allowed fields
-export function resolve_fields(
-    structure: Structure,
+Compiler.prototype.resolve_fields = function(
     fields: string | string[],
     type: string,
-    role: string,
-    defaultTable: string,
-    tableMap: Record<string, Record<string, any>>
+    default_table: string,
 ) {
     const allowedFields: Record<string, any> = {};
 
@@ -187,11 +186,11 @@ export function resolve_fields(
 
         const [table, field] = entry.includes(".")
             ? entry.split(".")
-            : [defaultTable, entry];
+            : [default_table, entry];
 
         console.log(table)
 
-        const tableStruct = structure[table];
+        const tableStruct = this.structure[table];
         if (!tableStruct) {
             throw new Error(`Unknown table '${table}'`);
         }
@@ -201,7 +200,7 @@ export function resolve_fields(
             throw new Error(`${type} not allowed on ${table}`);
         }
 
-        const permissions = endpoint[role];
+        const permissions = endpoint[this.role];
 
         if (
             !permissions ||
@@ -214,7 +213,7 @@ export function resolve_fields(
         const allowed = permissions.allowed ?? permissions.allow ?? [];
         const disallowed = permissions.disallowed ?? permissions.deny ?? [];
 
-        const tableFields = tableMap[table];
+        const tableFields = this.table_map[table];
 
         const addField = (fieldName: string) => {
             if (!resolve_allowed_fields(fieldName, allowed, disallowed)) {

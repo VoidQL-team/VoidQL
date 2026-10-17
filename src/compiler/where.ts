@@ -1,14 +1,19 @@
 import { Compiler } from "./index.js";
 import { ExistsCondition, FieldPermission, IfCondition, NotExistsCondition, WhereCondition } from "../types.js";
 import { and, between, eq, exists, gt, gte, ilike, inArray, isNotNull, isNull, like, lt, lte, ne, not, notBetween, notExists, notIlike, notInArray, notLike, or, SQL, sql } from "drizzle-orm";
-import { is_allowed_field, is_op_type, requests_data, resolve_fields, resolveCustomValue } from "./rbac.js";
+import { is_op_type, requests_data, resolveCustomValue } from "./rbac.js";
+
+type BuiltWhere = {
+  condition: any;
+  needs_table: boolean;
+};
 
 declare module "./index.js" {
     interface Compiler {
-        build_where(cond: WhereCondition, custom_data?:Record<string, any>): any;
+        build_where(cond: WhereCondition, custom_data?:Record<string, any>): BuiltWhere;
         and(conditions:any[]): any;
         or(conditions:any[]): any;
-        if(condition: IfCondition): any;
+        if(condition: IfCondition): BuiltWhere;
         exists(condition: ExistsCondition): any;
         not_exists(condition: NotExistsCondition): any;
         in_condition(left:any, right:any): any;
@@ -27,9 +32,16 @@ declare module "./index.js" {
 /*                                WHERE BUILDER                               */
 /* -------------------------------------------------------------------------- */
 
-Compiler.prototype.build_where = function(cond: WhereCondition, custom_data?:Record<string, any>): any {
-  if(cond == undefined) return
-  if(typeof cond == 'boolean') return cond
+Compiler.prototype.build_where = function(cond: WhereCondition, custom_data?:Record<string, any>): BuiltWhere {
+  let needs_table = false;
+  const build_child = (child: WhereCondition, child_custom_data?: Record<string, any>) => {
+    const built = this.build_where(child, child_custom_data);
+    needs_table ||= built.needs_table;
+    return built.condition;
+  };
+
+  if(cond == undefined) return { condition: undefined, needs_table };
+  if(typeof cond == 'boolean') return { condition: cond, needs_table };
 
   if (cond && typeof cond === "object") {
     const validateColRef = (value: any) => {
@@ -38,64 +50,51 @@ Compiler.prototype.build_where = function(cond: WhereCondition, custom_data?:Rec
       const match = value.match(/^\$col\.(.+)$/);
       if (
         match &&
-        !is_allowed_field(
-          match[1],
-          this.table_name,
-          this.structure,
-          this.type,
-          this.role,
-          this.table_map
-        )
+        !this.is_allowed_field(match[1])
       ) {
         throw Error(`Field ${match[1]} not allowed in where condition`);
       }
+      if (match) needs_table = true;
     };
 
     if ("field" in cond && cond.field) {
       if (
-        !is_allowed_field(
-          cond.field,
-          this.table_name,
-          this.structure,
-          this.type,
-          this.role,
-          this.table_map
-        )
+        !this.is_allowed_field(cond.field)
       ) {
         throw Error(`Field ${cond.field} not allowed in where condition`);
       }
+      needs_table = true;
     }
 
     if ("value" in cond) validateColRef(cond.value);
     if ("left_value" in cond) validateColRef(cond.left_value);
+    if ("start" in cond) validateColRef(cond.start);
+    if ("end" in cond) validateColRef(cond.end);
   }
   
   if ("and" in cond && cond.and) {
-    const parts = cond.and.map(c =>
-      this.build_where(c)
-    );
+    const parts = cond.and.map(c => build_child(c));
 
-    return this.and(parts);
+    return { condition: this.and(parts), needs_table };
   }
   else if ("or" in cond && cond.or) {
-    const parts = cond.or.map(c =>
-      this.build_where(c)
-    );
+    const parts = cond.or.map(c => build_child(c));
 
-    return this.or(parts);
+    return { condition: this.or(parts), needs_table };
   }
   else if('if' in cond && cond.if && "when" in cond.if && cond.if.when != undefined) {
-    return this.if(cond)
+    const built = this.if(cond);
+    return { condition: built.condition, needs_table: needs_table || built.needs_table };
   }else if('not' in cond && cond.not != undefined) {
-    return not(this.build_where(cond.not))
+    return { condition: not(build_child(cond.not)), needs_table };
   }
 
   if (cond && ('op' in cond || 'operator' in cond) && is_op_type(cond, "EXISTS") && 'query' in cond) {
-    return this.exists(cond)
+    return { condition: this.exists(cond), needs_table };
   }
 
   if (cond && ('op' in cond || 'operator' in cond) && is_op_type(cond, "NOT EXISTS") && 'query' in cond) {
-    return this.not_exists(cond)
+    return { condition: this.not_exists(cond), needs_table };
   }
 
   // Determine left side
@@ -113,10 +112,10 @@ Compiler.prototype.build_where = function(cond: WhereCondition, custom_data?:Rec
     Array.isArray(this.before_values)
   ) {
     const parts = this.before_values.map(custom_data =>
-      this.build_where(cond, custom_data)
+      build_child(cond, custom_data)
     );
 
-    return this.and(parts);
+    return { condition: this.and(parts), needs_table };
 
   } else if (
     !custom_data &&
@@ -126,10 +125,10 @@ Compiler.prototype.build_where = function(cond: WhereCondition, custom_data?:Rec
     Array.isArray(this.after_values)
   ) {
     const parts = this.after_values.map(custom_data =>
-      this.build_where(cond, custom_data)
+      build_child(cond, custom_data)
     );
 
-    return this.and(parts);
+    return { condition: this.and(parts), needs_table };
 
   } else if (
     !custom_data &&
@@ -139,10 +138,10 @@ Compiler.prototype.build_where = function(cond: WhereCondition, custom_data?:Rec
     Array.isArray(this.result_values)
   ) {
     const parts = this.result_values.map(custom_data =>
-      this.build_where(cond, custom_data)
+      build_child(cond, custom_data)
     );
 
-    return this.and(parts);
+    return { condition: this.and(parts), needs_table };
 
   } else if (
     !custom_data &&
@@ -152,16 +151,16 @@ Compiler.prototype.build_where = function(cond: WhereCondition, custom_data?:Rec
     Array.isArray(this.data)
   ) {
     const parts = this.data.map(custom_data =>
-      this.build_where(cond, custom_data)
+      build_child(cond, custom_data)
     );
 
-    return this.and(parts);
+    return { condition: this.and(parts), needs_table };
   }
 
   if ("left_value" in cond) {
     const left_value = resolveCustomValue(cond.left_value, this.user, this.query, this.table_map, this.table_name, custom_data)
     const passed = this.check_passed(cond, left_value)
-    if(passed != null) return passed
+    if(passed != null) return { condition: passed, needs_table }
     left = sql`${this.sanitize_undefined(left_value)}`;
   } else if ("field" in cond && cond.field) {
     let tbl, col;
@@ -177,7 +176,7 @@ Compiler.prototype.build_where = function(cond: WhereCondition, custom_data?:Rec
   } else if("value" in cond) {
     const value = resolveCustomValue(cond.value, this.user, this.query, this.table_map, this.table_name, custom_data)
     const passed = this.check_passed(cond, value)
-    if(passed != null) return passed
+    if(passed != null) return { condition: passed, needs_table }
     left = sql`${this.sanitize_undefined(value)}`;
   } else {
     console.log(cond)
@@ -187,18 +186,18 @@ Compiler.prototype.build_where = function(cond: WhereCondition, custom_data?:Rec
   if ("value" in cond) {
     const right_value = resolveCustomValue(cond.value, this.user, this.query, this.table_map, this.table_name, custom_data)
     const passed = this.check_passed(cond, right_value)
-    if(passed != null) return passed
+    if(passed != null) return { condition: passed, needs_table }
     right = sql`${this.sanitize_undefined(right_value)}`;
   }
   
   if("start" in cond && "end" in cond && is_op_type(cond, "BETWEEN")) {
     const start_value = resolveCustomValue(cond.start, this.user, this.query, this.table_map, this.table_name, custom_data)
     const start_passed = this.check_passed(cond, start_value)
-    if(start_passed != null) return start_passed
+    if(start_passed != null) return { condition: start_passed, needs_table }
     start = sql`${this.sanitize_undefined(start_value)}`;
     const end_value = resolveCustomValue(cond.end, this.user, this.query, this.table_map, this.table_name, custom_data)
     const end_passed = this.check_passed(cond, end_value)
-    if(end_passed != null) return end_passed
+    if(end_passed != null) return { condition: end_passed, needs_table }
     end = sql`${this.sanitize_undefined(end_value)}`;
   } else if(("start" in cond || "end" in cond)) {
     throw new Error("'start' or 'end' fields must have a compatible operator");
@@ -208,15 +207,15 @@ Compiler.prototype.build_where = function(cond: WhereCondition, custom_data?:Rec
 
   // Subquery IN
   if(is_op_type(cond, "IN") && (left != null && left !=undefined)) {
-    return this.in_condition(left, right)
+    return { condition: this.in_condition(left, right), needs_table }
   }else if(is_op_type(cond, "IN")) {
-    return sql`false`
+    return { condition: sql`false`, needs_table }
   }
 
   if(is_op_type(cond, "NOT IN") && (left != null && left !=undefined)) {
-    return this.not_in_condition(left, right)
+    return { condition: this.not_in_condition(left, right), needs_table }
   }else if(is_op_type(cond, "NOT IN")) {
-    return sql`false`
+    return { condition: sql`false`, needs_table }
   }
 
   const operator = cond.operator ?? cond.op
@@ -225,36 +224,36 @@ Compiler.prototype.build_where = function(cond: WhereCondition, custom_data?:Rec
   if(operator) {
     switch (operator.toUpperCase()) {
       case "=": {
-        if(right == null) return isNull(left)
-        else return eq(left, right)
+        if(right == null) return { condition: isNull(left), needs_table }
+        else return { condition: eq(left, right), needs_table }
       };
       case "!=": {
-        if(right == null) return isNull(left)
-        else return ne(left, right)
+        if(right == null) return { condition: isNull(left), needs_table }
+        else return { condition: ne(left, right), needs_table }
       };
-      case "<": return lt(left, right);
-      case "<=": return lte(left, right);
-      case ">": return gt(left, right);
-      case ">=": return gte(left, right);
-      case "LIKE": return like(left, right);
-      case "NOT LIKE": return notLike(left, right);
-      case "ILIKE": return ilike(left, right);
-      case "NOT ILIKE": return notIlike(left, right);
+      case "<": return { condition: lt(left, right), needs_table };
+      case "<=": return { condition: lte(left, right), needs_table };
+      case ">": return { condition: gt(left, right), needs_table };
+      case ">=": return { condition: gte(left, right), needs_table };
+      case "LIKE": return { condition: like(left, right), needs_table };
+      case "NOT LIKE": return { condition: notLike(left, right), needs_table };
+      case "ILIKE": return { condition: ilike(left, right), needs_table };
+      case "NOT ILIKE": return { condition: notIlike(left, right), needs_table };
       case "IS": {
-        if(right == null) return isNull(left)
+        if(right == null) return { condition: isNull(left), needs_table }
         else throw new Error(`Unsupported operator: ${operator}`);
       };
       case "IS NOT": {
-        if(right == null) return isNotNull(left)
+        if(right == null) return { condition: isNotNull(left), needs_table }
         else throw new Error(`Unsupported operator: ${operator}`);
       };
-      case "IS NULL": return isNull(left);
-      case "IS NOT NULL": return isNotNull(left);
+      case "IS NULL": return { condition: isNull(left), needs_table };
+      case "IS NOT NULL": return { condition: isNotNull(left), needs_table };
       case "BETWEEN": {
-        return between(left, start, end)
+        return { condition: between(left, start, end), needs_table }
       }
       case "NOT BETWEEN": {
-        return notBetween(left, start, end)
+        return { condition: notBetween(left, start, end), needs_table }
       }
     }
   }
@@ -283,7 +282,7 @@ Compiler.prototype.or = function(conditions: any[]) {
   return or(...conditions);
 }
 
-Compiler.prototype.if = function(cond: IfCondition) {
+Compiler.prototype.if = function(cond: IfCondition): BuiltWhere {
   const build_branch = (branch: IfCondition["if"]["do"] | IfCondition["if"]["else"]) => {
     if (typeof branch === "function") {
       throw new Error("Function not allowed in where condition");
@@ -293,15 +292,23 @@ Compiler.prototype.if = function(cond: IfCondition) {
       throw new Error("Structured Query not allowed in where condition");
     }
 
-    const value = branch === undefined ? false : this.build_where(branch);
-    return typeof value === "boolean" ? sql`${value}` : value;
+    const built = branch === undefined
+      ? { condition: false, needs_table: false }
+      : this.build_where(branch as WhereCondition);
+    return {
+      condition: typeof built.condition === "boolean" ? sql`${built.condition}` : built.condition,
+      needs_table: built.needs_table,
+    };
   };
 
-  const when_condition = this.build_where(cond.if.when);
+  const when = this.build_where(cond.if.when);
   const do_condition = build_branch(cond.if.do);
   const else_condition = build_branch(cond.if.else);
 
-  return sql<boolean>`CASE WHEN ${when_condition} THEN ${do_condition} ELSE ${else_condition} END`;
+  return {
+    condition: sql<boolean>`CASE WHEN ${when.condition} THEN ${do_condition.condition} ELSE ${else_condition.condition} END`,
+    needs_table: when.needs_table || do_condition.needs_table || else_condition.needs_table,
+  };
 }
 
 Compiler.prototype.exists = function(cond: ExistsCondition) {
@@ -312,11 +319,11 @@ Compiler.prototype.exists = function(cond: ExistsCondition) {
   if(sub_query) {
     subTable = this.table_map[sub_query.from];
     if (!subTable) throw new Error(`Table '${sub_query.from}' not found`);
-    fields = resolve_fields(this.structure, sub_query.select, 'GET', this.role, sub_query.from, this.table_map);
+    fields = this.resolve_fields(sub_query.select, 'GET', sub_query.from);
     fields = this.alias_selected_fields(fields);
     if(!fields) throw new Error(`Inner fields not found`);
     subWhere = sub_query.where
-      ? this.build_where(sub_query.where)
+      ? this.build_where(sub_query.where).condition
       : undefined;
   }
   let inner_query = this.db.select(fields).from(subTable)
@@ -334,11 +341,11 @@ Compiler.prototype.not_exists = function(cond: NotExistsCondition) {
   if(sub_query) {
     subTable = this.table_map[sub_query.from];
     if (!subTable) throw new Error(`Table '${sub_query.from}' not found`);
-    fields = resolve_fields(this.structure, sub_query.select, 'GET', this.role, sub_query.from, this.table_map);
+    fields = this.resolve_fields(sub_query.select, 'GET', sub_query.from);
     fields = this.alias_selected_fields(fields);
     if(!fields) throw new Error(`Inner fields not found`);
     subWhere = sub_query.where
-      ? this.build_where(sub_query.where)
+      ? this.build_where(sub_query.where).condition
       : undefined;
   }
   let inner_query = this.db.select(fields).from(subTable)
@@ -352,11 +359,11 @@ Compiler.prototype.in_condition = function(left:any, right: any) {
   if (right != undefined && typeof right === "object" && "select" in right) {
     const subTable = this.table_map[right.from];
     if (!subTable) throw new Error(`Table '${right.from}' not found`);
-    let fields = resolve_fields(this.structure, right.select, 'GET', this.role, right.from, this.table_map);
+    let fields = this.resolve_fields(right.select, 'GET', right.from);
     fields = this.alias_selected_fields(fields);
     if(!fields) throw new Error(`Inner fields not found`);
     const subWhere = right.where
-      ? this.build_where(right.where)
+      ? this.build_where(right.where).condition
       : undefined;
     let inner_query = this.db.select(fields).from(subTable)
     if(subWhere) {
@@ -373,11 +380,11 @@ Compiler.prototype.not_in_condition = function(left:any, right: any) {
   if (right != undefined && typeof right === "object" && "select" in right) {
       const subTable = this.table_map[right.from];
       if (!subTable) throw new Error(`Table '${right.from}' not found`);
-      let fields = resolve_fields(this.structure, right.select, 'GET', this.role, right.from, this.table_map);
+      let fields = this.resolve_fields(right.select, 'GET', right.from);
       fields = this.alias_selected_fields(fields);
       if(!fields) throw new Error(`Inner fields not found`);
       const subWhere = right.where
-        ? this.build_where(right.where)
+        ? this.build_where(right.where).condition
         : undefined;
       let inner_query = this.db.select(fields).from(subTable)
       if(subWhere) {
@@ -465,43 +472,14 @@ Compiler.prototype.build_acl_where = function(allowed: FieldPermission, disallow
   return aclWhere;
 }
 
-export function has_field_or_col_attribute(
-  input: any,
-  insideFrom: boolean = false
-): boolean {
-  if (input === null || typeof input !== 'object') {
-    return false;
-  }
-
-  if (Array.isArray(input)) {
-    return input.some(item => has_field_or_col_attribute(item, insideFrom));
-  }
-
-  // If this object defines a FROM clause, everything below it is insideFrom
-  const isFromScope = insideFrom || Object.prototype.hasOwnProperty.call(input, 'from');
-
-  // Only count field / $col if NOT inside a from-scope
-  if (
-    !isFromScope &&
-    (Object.prototype.hasOwnProperty.call(input, 'field') ||
-     Object.prototype.hasOwnProperty.call(input, '$col'))
-  ) {
-    return true;
-  }
-
-  return Object.values(input).some(value =>
-    has_field_or_col_attribute(value, isFromScope)
-  );
-}
-
 Compiler.prototype.compile_policy = function() {
   if(typeof this.where == "boolean" || this.where == undefined) {
     return this.where ?? false
   }
-  let where = this.build_where(this.where);
+  const { condition: where, needs_table } = this.build_where(this.where);
 
   // Start empty SQL object
-  const need_table:boolean = this.query.join ? true : has_field_or_col_attribute(this.where)
+  const need_table = this.query.join ? true : needs_table
   
   const check_query = sql<number>`
     COALESCE(
