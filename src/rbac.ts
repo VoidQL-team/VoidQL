@@ -1,6 +1,6 @@
 import { avg, avgDistinct, count, countDistinct, max, min, sum, sumDistinct } from "drizzle-orm";
 import { asc, desc } from "drizzle-orm";
-import { WhereCondition, StructuredQuery, type FieldPermission, type SubqueryCondition, Structure, SimpleCondition, ExistsCondition, NotExistsCondition, BetweenCondition, NotBetweenCondition, AllowedAliasesReturning, DisallowedAliasesReturning } from "./types.js";
+import { WhereCondition, StructuredQuery, type FieldPermission, type SubqueryCondition, Structure, SimpleCondition, ExistsCondition, NotExistsCondition, BetweenCondition, NotBetweenCondition } from "./types.js";
 
 
 /* -------------------------------------------------------------------------- */
@@ -16,7 +16,7 @@ export function alias_selected_fields(fields: Record<string, any>): Record<strin
   return aliased;
 }
 
-function is_allowed_field(entry:string, default_table:string, structure: Structure, type:string, role:string, tableMap: Record<string, Record<string, any>>):boolean {
+export function is_allowed_field(entry:string, default_table:string, structure: Structure, type:string, role:string, tableMap: Record<string, Record<string, any>>):boolean {
     let table: string;
     let field: string;
 

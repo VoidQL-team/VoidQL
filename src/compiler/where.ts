@@ -1,7 +1,7 @@
 import { Compiler } from "./index.js";
 import { ExistsCondition, FieldPermission, IfCondition, NotExistsCondition, WhereCondition } from "../types.js";
 import { and, between, eq, exists, gt, gte, ilike, inArray, isNotNull, isNull, like, lt, lte, ne, not, notBetween, notExists, notIlike, notInArray, notLike, or, SQL, sql } from "drizzle-orm";
-import { alias_selected_fields, is_op_type, requests_data, resolve_fields, resolveCustomValue, validate_where_fields } from "../rbac.js";
+import { alias_selected_fields, is_allowed_field, is_op_type, requests_data, resolve_fields, resolveCustomValue } from "../rbac.js";
 import { has_field_or_col_attribute } from "../old/drizzle.js";
 
 declare module "./index.js" {
@@ -31,6 +31,45 @@ declare module "./index.js" {
 Compiler.prototype.build_where = function(cond: WhereCondition, custom_data?:Record<string, any>): any {
   if(cond == undefined) return
   if(typeof cond == 'boolean') return cond
+
+  if (cond && typeof cond === "object") {
+    const validateColRef = (value: any) => {
+      if (typeof value !== "string") return;
+
+      const match = value.match(/^\$col\.(.+)$/);
+      if (
+        match &&
+        !is_allowed_field(
+          match[1],
+          this.table_name,
+          this.structure,
+          this.type,
+          this.role,
+          this.table_map
+        )
+      ) {
+        throw Error(`Field ${match[1]} not allowed in where condition`);
+      }
+    };
+
+    if ("field" in cond && cond.field) {
+      if (
+        !is_allowed_field(
+          cond.field,
+          this.table_name,
+          this.structure,
+          this.type,
+          this.role,
+          this.table_map
+        )
+      ) {
+        throw Error(`Field ${cond.field} not allowed in where condition`);
+      }
+    }
+
+    if ("value" in cond) validateColRef(cond.value);
+    if ("left_value" in cond) validateColRef(cond.left_value);
+  }
   
   if ("and" in cond && cond.and) {
     const parts = cond.and.map(c =>
@@ -481,15 +520,12 @@ Compiler.prototype.validate_policy = async function() {
 Compiler.prototype.define_where = function(allowed: FieldPermission, disallowed: FieldPermission) {
   const aclWhere = this.build_acl_where(allowed, disallowed);
 
-  let query_where = this.where ? validate_where_fields(this.where, this.table_map, this.table_name, this.structure, this.role, this.type) : this.where
-  if (query_where && aclWhere) {
-      this.where = {
-          and: [aclWhere, query_where]
-      };
-  } else if (query_where) {
-      this.where = query_where;
+  if (this.where && aclWhere) {
+    this.where = {
+        and: [aclWhere, this.where]
+    };
   } else if (aclWhere) {
-      this.where = aclWhere
+    this.where = aclWhere
   }
 
   if (this.where) {
