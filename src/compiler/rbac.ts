@@ -3,6 +3,13 @@ import { asc, desc } from "drizzle-orm";
 import { Compiler } from "./index.js";
 import { WhereCondition, StructuredQuery, type FieldPermission, type SubqueryCondition, Structure, SimpleCondition, ExistsCondition, NotExistsCondition, BetweenCondition, NotBetweenCondition, Table } from "../types.js";
 
+type CustomValueContext = {
+    user: any;
+    query: StructuredQuery;
+    table_map: Record<string, any>;
+    table_name: string;
+};
+
 declare module "./index.js" {
   interface Compiler {
     alias_selected_fields(fields: Record<string, any>): Record<string, any>
@@ -15,7 +22,12 @@ declare module "./index.js" {
     to_array<T>(value: T | T[] | null | undefined): T[];
     strip_prefixes(input: any): any;
     resolve_data(fields: any): Record<string, any> | Array<Record<string, any>>;
-    requests_data(cond: WhereCondition, kind: string): boolean
+    requests_data(cond: WhereCondition, kind: string): boolean;
+    resolve_custom_value(
+      value: any,
+      custom_value?: Record<string, any>,
+      context?: CustomValueContext
+    ): any;
   }
 }
 
@@ -892,25 +904,25 @@ Compiler.prototype.resolve_data = function(fields: any): Record<string, any> | A
         if (isDataRef(value, "before")) {
             results = results.map((item, index) => ({
                 ...item,
-                [entry]: resolveCustomValue(value, this.user, this.query, this.table_map, this.table_name, normalizedBefore[index]) ?? null
+                [entry]: this.resolve_custom_value(value, normalizedBefore[index]) ?? null
             }));
 
         } else if (isDataRef(value, "after")) {
             results = results.map((item, index) => ({
                 ...item,
-                [entry]: resolveCustomValue(value, this.user, this.query, this.table_map, this.table_name, normalizedAfter[index]) ?? null
+                [entry]: this.resolve_custom_value(value, normalizedAfter[index]) ?? null
             }));
 
         } else if (isDataRef(value, "result")) {
             results = results.map((item, index) => ({
                 ...item,
-                [entry]: resolveCustomValue(value, this.user, this.query, this.table_map, this.table_name, normalizedResult[index]) ?? null
+                [entry]: this.resolve_custom_value(value, normalizedResult[index]) ?? null
             }));
 
         } else {
             results = results.map((item) => ({
                 ...item,
-                [entry]: resolveCustomValue(value, this.user, this.query, this.table_map, this.table_name)
+                [entry]: this.resolve_custom_value(value)
             }));
         }
     }
@@ -935,14 +947,16 @@ Compiler.prototype.requests_data = function(cond: WhereCondition, kind: string):
 }
 
 // * Resolves custom values ex. $data - $user $col
-export function resolveCustomValue(
+Compiler.prototype.resolve_custom_value = function(
   value: any,
-  user: any,
-  query: StructuredQuery,
-  tableMap: Record<string, any>,
-  default_table_name: string,
   custom_value?: Record<string, any>,
+  context?: CustomValueContext,
 ): any {
+    const user = context ? context.user : this.user;
+    const query = context ? context.query : this.query;
+    const table_map = context ? context.table_map : this.table_map;
+    const table_name = context ? context.table_name : this.table_name;
+
     if (!value) return value;
 
     const resolvePath = (
@@ -982,7 +996,7 @@ export function resolveCustomValue(
     if (match) {
         const colRef = match[1];
 
-        if (!tableMap) {
+        if (!table_map) {
             throw new Error(`tableMap is required to resolve $col`);
         }
 
@@ -994,18 +1008,18 @@ export function resolveCustomValue(
         if (parts.length === 2) {
             [vTbl, vCol] = parts;
         } else if (parts.length === 1) {
-            if (!default_table_name) {
+            if (!table_name) {
                 throw new Error(
                     `Column '${colRef}' missing table and no default_table_name provided`
                 );
             }
-            vTbl = default_table_name;
+            vTbl = table_name;
             vCol = parts[0];
         } else {
             throw new Error(`Invalid $col format: '${value}'`);
         }
 
-        const vColumn = tableMap[vTbl]?.[vCol];
+        const vColumn = table_map[vTbl]?.[vCol];
 
         if (!vColumn) {
             throw new Error(`Column '${colRef}' not found`);

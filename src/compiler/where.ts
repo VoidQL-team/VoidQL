@@ -1,7 +1,7 @@
 import { Compiler } from "./index.js";
 import { ExistsCondition, FieldPermission, IfCondition, NotExistsCondition, WhereCondition } from "../types.js";
 import { and, between, eq, exists, gt, gte, ilike, inArray, isNotNull, isNull, like, lt, lte, ne, not, notBetween, notExists, notIlike, notInArray, notLike, or, SQL, sql } from "drizzle-orm";
-import { is_op_type, resolveCustomValue } from "./rbac.js";
+import { is_op_type } from "./rbac.js";
 
 type BuiltWhere = {
   condition: any;
@@ -158,7 +158,7 @@ Compiler.prototype.build_where = function(cond: WhereCondition, custom_data?:Rec
   }
 
   if ("left_value" in cond) {
-    const left_value = resolveCustomValue(cond.left_value, this.user, this.query, this.table_map, this.table_name, custom_data)
+    const left_value = this.resolve_custom_value(cond.left_value, custom_data)
     const passed = this.check_passed(cond, left_value)
     if(passed != null) return { condition: passed, needs_table }
     left = sql`${this.sanitize_undefined(left_value)}`;
@@ -174,7 +174,7 @@ Compiler.prototype.build_where = function(cond: WhereCondition, custom_data?:Rec
     if (!column) throw new Error(`Column '${cond.field}' not found`);
     left = column;
   } else if("value" in cond) {
-    const value = resolveCustomValue(cond.value, this.user, this.query, this.table_map, this.table_name, custom_data)
+    const value = this.resolve_custom_value(cond.value, custom_data)
     const passed = this.check_passed(cond, value)
     if(passed != null) return { condition: passed, needs_table }
     left = sql`${this.sanitize_undefined(value)}`;
@@ -184,18 +184,18 @@ Compiler.prototype.build_where = function(cond: WhereCondition, custom_data?:Rec
   }
 
   if ("value" in cond) {
-    const right_value = resolveCustomValue(cond.value, this.user, this.query, this.table_map, this.table_name, custom_data)
+    const right_value = this.resolve_custom_value(cond.value, custom_data)
     const passed = this.check_passed(cond, right_value)
     if(passed != null) return { condition: passed, needs_table }
     right = sql`${this.sanitize_undefined(right_value)}`;
   }
   
   if("start" in cond && "end" in cond && is_op_type(cond, "BETWEEN")) {
-    const start_value = resolveCustomValue(cond.start, this.user, this.query, this.table_map, this.table_name, custom_data)
+    const start_value = this.resolve_custom_value(cond.start, custom_data)
     const start_passed = this.check_passed(cond, start_value)
     if(start_passed != null) return { condition: start_passed, needs_table }
     start = sql`${this.sanitize_undefined(start_value)}`;
-    const end_value = resolveCustomValue(cond.end, this.user, this.query, this.table_map, this.table_name, custom_data)
+    const end_value = this.resolve_custom_value(cond.end, custom_data)
     const end_passed = this.check_passed(cond, end_value)
     if(end_passed != null) return { condition: end_passed, needs_table }
     end = sql`${this.sanitize_undefined(end_value)}`;

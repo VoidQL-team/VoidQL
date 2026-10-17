@@ -13,7 +13,6 @@ import {
   type TriggerStructure,
   type WhereCondition,
 } from "../types.js";
-import { resolveCustomValue } from "./rbac.js";
 import { if_condition } from "../old/drizzle.ts.old";
 
 type TriggerValues = {
@@ -35,6 +34,10 @@ type TriggerContext = {
   data?: Record<string, any> | Record<string, any>[];
   buildWhere: (
     condition: WhereCondition | SubqueryCondition,
+    customData?: Record<string, any>,
+  ) => any;
+  resolveCustomValue: (
+    value: any,
     customData?: Record<string, any>,
   ) => any;
   buildQuery: (
@@ -112,24 +115,10 @@ export class Trigger {
     const rows = Array.isArray(data) ? data : [data];
     for (const row of rows) {
       const where = this.context.buildWhere(set.when, row);
-      const value = sql`${resolveCustomValue(
-        set.value,
-        this.context.user,
-        this.context.query,
-        this.context.tableMap,
-        this.context.tableName,
-        row,
-      )}`;
+      const value = sql`${this.context.resolveCustomValue(set.value, row)}`;
       const fallback =
         "else_value" in set
-          ? sql`${resolveCustomValue(
-              set.else_value,
-              this.context.user,
-              this.context.query,
-              this.context.tableMap,
-              this.context.tableName,
-              row,
-            )}`
+          ? sql`${this.context.resolveCustomValue(set.else_value, row)}`
           : row[set.field] ?? sql`COALESCE(${value}, '')`;
 
       row[set.field] = sql`
@@ -231,6 +220,13 @@ Compiler.prototype.build_triggers = async function(
     data: this.data,
     buildWhere: (condition, customData) =>
       this.build_where(condition as WhereCondition, customData).condition,
+    resolveCustomValue: (value, customData) =>
+      this.resolve_custom_value(value, customData, {
+        user: context.user,
+        query: context.query,
+        table_map: context.tableMap,
+        table_name: context.tableName,
+      }),
     buildQuery: (query, triggerValues) =>
       new Compiler({
         db: this.db,
