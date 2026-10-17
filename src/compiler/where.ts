@@ -1,8 +1,7 @@
 import { Compiler } from "./index.js";
 import { ExistsCondition, FieldPermission, IfCondition, NotExistsCondition, WhereCondition } from "../types.js";
 import { and, between, eq, exists, gt, gte, ilike, inArray, isNotNull, isNull, like, lt, lte, ne, not, notBetween, notExists, notIlike, notInArray, notLike, or, SQL, sql } from "drizzle-orm";
-import { alias_selected_fields, is_allowed_field, is_op_type, requests_data, resolve_fields, resolveCustomValue } from "../rbac.js";
-import { has_field_or_col_attribute } from "../old/drizzle.js";
+import { is_allowed_field, is_op_type, requests_data, resolve_fields, resolveCustomValue } from "./rbac.js";
 
 declare module "./index.js" {
     interface Compiler {
@@ -314,7 +313,7 @@ Compiler.prototype.exists = function(cond: ExistsCondition) {
     subTable = this.table_map[sub_query.from];
     if (!subTable) throw new Error(`Table '${sub_query.from}' not found`);
     fields = resolve_fields(this.structure, sub_query.select, 'GET', this.role, sub_query.from, this.table_map);
-    fields = alias_selected_fields(fields);
+    fields = this.alias_selected_fields(fields);
     if(!fields) throw new Error(`Inner fields not found`);
     subWhere = sub_query.where
       ? this.build_where(sub_query.where)
@@ -336,7 +335,7 @@ Compiler.prototype.not_exists = function(cond: NotExistsCondition) {
     subTable = this.table_map[sub_query.from];
     if (!subTable) throw new Error(`Table '${sub_query.from}' not found`);
     fields = resolve_fields(this.structure, sub_query.select, 'GET', this.role, sub_query.from, this.table_map);
-    fields = alias_selected_fields(fields);
+    fields = this.alias_selected_fields(fields);
     if(!fields) throw new Error(`Inner fields not found`);
     subWhere = sub_query.where
       ? this.build_where(sub_query.where)
@@ -354,7 +353,7 @@ Compiler.prototype.in_condition = function(left:any, right: any) {
     const subTable = this.table_map[right.from];
     if (!subTable) throw new Error(`Table '${right.from}' not found`);
     let fields = resolve_fields(this.structure, right.select, 'GET', this.role, right.from, this.table_map);
-    fields = alias_selected_fields(fields);
+    fields = this.alias_selected_fields(fields);
     if(!fields) throw new Error(`Inner fields not found`);
     const subWhere = right.where
       ? this.build_where(right.where)
@@ -375,7 +374,7 @@ Compiler.prototype.not_in_condition = function(left:any, right: any) {
       const subTable = this.table_map[right.from];
       if (!subTable) throw new Error(`Table '${right.from}' not found`);
       let fields = resolve_fields(this.structure, right.select, 'GET', this.role, right.from, this.table_map);
-      fields = alias_selected_fields(fields);
+      fields = this.alias_selected_fields(fields);
       if(!fields) throw new Error(`Inner fields not found`);
       const subWhere = right.where
         ? this.build_where(right.where)
@@ -464,6 +463,35 @@ Compiler.prototype.build_acl_where = function(allowed: FieldPermission, disallow
   }
 
   return aclWhere;
+}
+
+export function has_field_or_col_attribute(
+  input: any,
+  insideFrom: boolean = false
+): boolean {
+  if (input === null || typeof input !== 'object') {
+    return false;
+  }
+
+  if (Array.isArray(input)) {
+    return input.some(item => has_field_or_col_attribute(item, insideFrom));
+  }
+
+  // If this object defines a FROM clause, everything below it is insideFrom
+  const isFromScope = insideFrom || Object.prototype.hasOwnProperty.call(input, 'from');
+
+  // Only count field / $col if NOT inside a from-scope
+  if (
+    !isFromScope &&
+    (Object.prototype.hasOwnProperty.call(input, 'field') ||
+     Object.prototype.hasOwnProperty.call(input, '$col'))
+  ) {
+    return true;
+  }
+
+  return Object.values(input).some(value =>
+    has_field_or_col_attribute(value, isFromScope)
+  );
 }
 
 Compiler.prototype.compile_policy = function() {

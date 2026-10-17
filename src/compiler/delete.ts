@@ -1,4 +1,4 @@
-import { alias_selected_fields, resolve_order_by_fields, resolve_returning_fields, toArray } from "../rbac.js";
+import { resolve_order_by_fields, resolve_returning_fields, toArray } from "./rbac.js";
 import { Compiler } from "./index.js";
 
 declare module "./index.js" {
@@ -27,7 +27,7 @@ Compiler.prototype.delete = function() {
 
   if(this.returning) {
     let fields = resolve_returning_fields(this.structure, this.returning, this.type, this.role, this.table_name, this.table_map)
-    fields = alias_selected_fields(fields)
+    fields = this.alias_selected_fields(fields)
     if (Object.keys(fields).length === 0) {
       throw new Error("No valid returning fields allowed");
     }

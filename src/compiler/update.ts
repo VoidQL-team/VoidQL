@@ -1,5 +1,5 @@
 import { getColumns, inArray } from "drizzle-orm";
-import { resolve_order_by_fields, toArray } from "../rbac.js";
+import { resolve_order_by_fields, toArray } from "./rbac.js";
 import { Compiler } from "./index.js";
 
 declare module "./index.js" {

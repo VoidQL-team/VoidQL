@@ -13,8 +13,8 @@ import {
   type TriggerStructure,
   type WhereCondition,
 } from "../types.js";
-import { resolve_returning_fields, resolveCustomValue } from "../rbac.js";
-import { if_condition } from "../old/drizzle.js";
+import { resolve_returning_fields, resolveCustomValue } from "./rbac.js";
+import { if_condition } from "../old/drizzle.ts.old";
 
 type TriggerValues = {
   before?: any | any[];

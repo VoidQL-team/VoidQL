@@ -1,13 +1,13 @@
 import { and, eq } from "drizzle-orm";
 import { Compiler } from "./index.js";
-import { resolve_group_by_fields, resolve_order_by_fields, toArray } from "../rbac.js";
+import { resolve_group_by_fields, resolve_order_by_fields, toArray } from "./rbac.js";
 import { Join, SelectOptions, WhereCondition } from "../types.js";
 
 declare module "./index.js" {
-    interface Compiler {
-        get(settings?: SelectOptions):void;
-        build_join(q: any, joins: Join[]):void;
-    }
+  interface Compiler {
+    get(settings?: SelectOptions):void;
+    build_join(q: any, joins: Join[]):void;
+  }
 }
 
 Compiler.prototype.get = function (settings?: SelectOptions) {

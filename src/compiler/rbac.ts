@@ -1,16 +1,21 @@
 import { avg, avgDistinct, count, countDistinct, max, min, sum, sumDistinct } from "drizzle-orm";
 import { asc, desc } from "drizzle-orm";
-import { WhereCondition, StructuredQuery, type FieldPermission, type SubqueryCondition, Structure, SimpleCondition, ExistsCondition, NotExistsCondition, BetweenCondition, NotBetweenCondition } from "./types.js";
+import { Compiler } from "./index.js";
+import { WhereCondition, StructuredQuery, type FieldPermission, type SubqueryCondition, Structure, SimpleCondition, ExistsCondition, NotExistsCondition, BetweenCondition, NotBetweenCondition, Table } from "../types.js";
 
+declare module "./index.js" {
+  interface Compiler {
+    alias_selected_fields(fields: Record<string, any>): Record<string, any>
+    extract_table_map(): Record<string, Table>;
+  }
+}
 
 /* -------------------------------------------------------------------------- */
 /*                               RESOLVE FIELDS                               */
 /* -------------------------------------------------------------------------- */
-// * Alias selected fields from the user
-export function alias_selected_fields(fields: Record<string, any>): Record<string, any> {
+Compiler.prototype.alias_selected_fields = function (fields: Record<string, any>): Record<string, any> {
   const aliased: Record<string, any> = {};
   for (const [key, col] of Object.entries(fields)) {
-    // * key is already `tablename.field`
     aliased[key] = col;
   }
   return aliased;
@@ -1122,187 +1127,8 @@ export function is_op_type<T extends string>(
   )
 }
 
-/* -------------------------------------------------------------------------- */
-/*                              WHERE VALIDATION                              */
-/* -------------------------------------------------------------------------- */
-// * validate fields of where condition before accessing it to check if the user has access to that field 
-export function validate_where_fields(
-  cond: WhereCondition | SubqueryCondition,
-  tableMap: Record<string, any>,
-  default_table: string,
-  structure: Structure,
-  role: string,
-  type: string
-): WhereCondition | SubqueryCondition {
-
-  if (!cond || typeof cond !== "object") return cond;
-
-  let newCond= { ...cond };
-
-  // ---- AND ----
-  if ("and" in newCond && Array.isArray(newCond.and)) {
-    newCond.and = newCond.and.map(c =>
-      validate_where_fields(c, tableMap, default_table, structure, role, type)
-    );
-  }
-
-  // ---- OR ----
-  if ("or" in newCond && Array.isArray(newCond.or)) {
-    newCond.or = newCond.or.map(c =>
-      validate_where_fields(c, tableMap, default_table, structure, role, type)
-    );
-  }
-
-  // ---- NOT ----
-  if ("not" in newCond && newCond.not) {
-    newCond.not = validate_where_fields(
-      newCond.not,
-      tableMap,
-      default_table,
-      structure,
-      role,
-      type
-    );
-  }
-
-  // ---- IF ----
-  if ("if" in newCond && newCond.if && typeof newCond.if === "object") {
-    const newIf = { ...newCond.if };
-
-    if (newIf.when != undefined) {
-      newIf.when = validate_where_fields(
-        newIf.when,
-        tableMap,
-        default_table,
-        structure,
-        role,
-        type
-      );
-    }
-
-    if (newIf.do && typeof newIf.do === "object" && !("type" in newIf.do)) {
-      newIf.do = validate_where_fields(
-        newIf.do,
-        tableMap,
-        default_table,
-        structure,
-        role,
-        type
-      );
-    }
-
-    if (newIf.else && typeof newIf.else === "object" && !("type" in newIf.else)) {
-      newIf.else = validate_where_fields(
-        newIf.else,
-        tableMap,
-        default_table,
-        structure,
-        role,
-        type
-      );
-    }
-
-    newCond.if = newIf;
-  }
-
-  // ---- EXISTS / SUBQUERY ----
-  if ("query" in newCond && newCond.query) {
-    const newQuery = { ...newCond.query };
-
-    if (newQuery.where) {
-      newQuery.where = validate_where_fields(
-        newQuery.where,
-        tableMap,
-        default_table,
-        structure,
-        role,
-        type
-      );
-    }
-
-    newCond.query = newQuery;
-  }
-
-  // ---- helper to validate $col ----
-  const validateColRef = (val: any) => {
-    if (typeof val === "string") {
-      const match = val.match(/^\$col\.(.+)$/);
-      if (match) {
-        const field = match[1];
-
-        const allowed = is_allowed_field(
-          field,
-          default_table,
-          structure,
-          type,
-          role,
-          tableMap
-        );
-
-        if (!allowed) {
-          throw Error(`Field ${field} not allowed in where condition`);
-        }
-      }
-    }
-  };
-
-  // ---- helper for subqueries ----
-  const handleSubquery = (val: any) => {
-    if (val && typeof val === "object" && "select" in val) {
-      const sub = { ...val };
-
-      if (sub.where) {
-        sub.where = validate_where_fields(
-          sub.where,
-          tableMap,
-          default_table,
-          structure,
-          role,
-          type
-        );
-      }
-
-      return sub;
-    }
-    return val;
-  };
-
-  // ---- VALUE ----
-  if ("value" in newCond) {
-    newCond.value = handleSubquery(newCond.value);
-    validateColRef(newCond.value);
-  }
-
-  // ---- LEFT VALUE ----
-  if ("left_value" in newCond) {
-    newCond.left_value = handleSubquery(newCond.left_value);
-    validateColRef(newCond.left_value);
-  }
-
-  // ---- FIELD ----
-  if ("field" in newCond && newCond.field) {
-    const allowed = is_allowed_field(
-      newCond.field,
-      default_table,
-      structure,
-      type,
-      role,
-      tableMap
-    );
-
-    if (!allowed) {
-      throw Error(`Field ${newCond.field} not allowed in where condition`);
-    }
-  }
-
-  return newCond;
-}
-
-// extract the map of the table
-export function extractTableMap<T extends { table: any }>(
-  structure: Record<string, T>
-): Record<string, T["table"]> {
+Compiler.prototype.extract_table_map = function(): Record<string, Table> {
   return Object.fromEntries(
-    Object.entries(structure).map(([key, value]) => [key, value.table])
+    Object.entries(this.structure).map(([key, value]) => [key, value.table])
   );
 }

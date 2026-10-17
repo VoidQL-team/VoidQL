@@ -16,12 +16,10 @@ import {
 } from "../types.js";
 
 import {
-    alias_selected_fields,
-    extractTableMap,
     resolve_data,
     resolve_fields,
     stripPrefixes,
-} from "../rbac.js";
+} from "./rbac.js";
 
 export type CompilerContext = VoidQLContext & {
   query: StructuredQuery;
@@ -142,7 +140,7 @@ export class Compiler {
         /* -------------------------------------------------------------------------- */
 
         this.table = this.table_structure.table
-        this.table_map = extractTableMap(this.structure);
+        this.table_map = this.extract_table_map();
         this.table_name = getTableName(this.table)
 
         this.define_where(allowed, disallowed)
@@ -233,7 +231,7 @@ export class Compiler {
                 }
 
                 this.select = this.validate_fields(
-                    alias_selected_fields(
+                    this.alias_selected_fields(
                         resolve_fields(
                             this.structure,
                             this.query.select,
@@ -250,7 +248,7 @@ export class Compiler {
 
             case "DELETE": {
                 this.select = this.validate_fields(
-                    alias_selected_fields(
+                    this.alias_selected_fields(
                         resolve_fields(
                             this.structure,
                             "*",

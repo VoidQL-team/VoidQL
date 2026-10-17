@@ -1,5 +1,5 @@
 import { Database, WhereCondition, StructuredQuery, Structure, BuildWhereOptions, Transaction, Request, QueryPhase, CompileResult } from "../types.js";
-import { resolve_data, resolve_fields, alias_selected_fields, extractTableMap, stripPrefixes, validate_where_fields } from "../rbac.js";
+import { resolve_data, resolve_fields, alias_selected_fields, extractTableMap, stripPrefixes, validate_where_fields } from "../compiler/rbac.js";
 import { buildAclWhere, buildWhere, delete_method, get_method, if_condition, is_allowed_empty, post_method, put_method, run_triggers } from "./drizzle.js";
 import { getTableName } from "drizzle-orm";
 
@@ -414,4 +414,4 @@ export type {
 } from "../types.js";
 
 export default compile;
-export { stripPrefixes } from "../rbac.js";
+export { stripPrefixes } from "../compiler/rbac.js";
