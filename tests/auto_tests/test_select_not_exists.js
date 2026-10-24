@@ -1,7 +1,7 @@
 import { expect } from "vitest";
 import { VoidQL } from "../../src";
 
-export default async function selectNotExists(
+export default async function select_not_exists(
   db,
   structure,
   local_user,

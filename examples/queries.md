@@ -1,10 +1,25 @@
 # Queries
 
+## Contents
+
+- [Runtime Tokens](#runtime-tokens)
+- [Basic Queries](#basic-queries)
+- [Subqueries](#subqueries)
+- [Joins](#joins)
+- [Aggregation](#aggregation)
+- [Pagination](#pagination)
+- [Inserts](#inserts)
+- [Updates](#updates)
+- [Deletes](#deletes)
+- [Runtime Variables](#runtime-variables)
+- [Workflows](#workflows)
+- [Enterprise Examples](#enterprise-examples)
+
 ## Runtime Tokens
 
 The query engine supports special runtime tokens.
 
-All tokens are case-insensitive and support both snake_case and camelCase (e.g. $countDistinct, $count_distinct, $COUNTDISTINCT are equivalent).
+Token names are case-insensitive. Aggregate tokens support snake_case and legacy camelCase forms, such as `$count_distinct` and `$countDistinct`.
 
 | Token                  | Description                      |
 | ---------------------- | -------------------------------- |
@@ -24,9 +39,9 @@ All tokens are case-insensitive and support both snake_case and camelCase (e.g. 
 
 ---
 
-# Basic Queries
+## Basic Queries
 
-## 1. Basic GET
+### 1. Basic GET
 
 ```ts
 const query: StructuredQuery = {
@@ -38,7 +53,7 @@ const query: StructuredQuery = {
 
 ---
 
-## 2. GET With Field Selection
+### 2. GET With Field Selection
 
 ```ts
 const query: StructuredQuery = {
@@ -50,7 +65,7 @@ const query: StructuredQuery = {
 
 ---
 
-## 3. Simple WHERE
+### 3. Simple WHERE
 
 ```ts
 const query: StructuredQuery = {
@@ -68,7 +83,7 @@ const query: StructuredQuery = {
 
 ---
 
-## 4. Multiple AND Conditions
+### 4. Multiple AND Conditions
 
 ```ts
 const query: StructuredQuery = {
@@ -95,7 +110,7 @@ const query: StructuredQuery = {
 
 ---
 
-## 5. Nested AND / OR
+### 5. Nested AND / OR
 
 ```ts
 const query: StructuredQuery = {
@@ -133,7 +148,7 @@ const query: StructuredQuery = {
 
 ---
 
-## 6. NOT Condition
+### 6. NOT Condition
 
 ```ts
 const query: StructuredQuery = {
@@ -153,7 +168,7 @@ const query: StructuredQuery = {
 
 ---
 
-## 7. BETWEEN
+### 7. BETWEEN
 
 ```ts
 const query: StructuredQuery = {
@@ -172,7 +187,7 @@ const query: StructuredQuery = {
 
 ---
 
-## 8. IN Operator
+### 8. IN Operator
 
 ```ts
 const query: StructuredQuery = {
@@ -190,7 +205,7 @@ const query: StructuredQuery = {
 
 ---
 
-## 9. NOT IN Operator
+### 9. NOT IN Operator
 
 ```ts
 const query: StructuredQuery = {
@@ -208,7 +223,7 @@ const query: StructuredQuery = {
 
 ---
 
-## 10. LIKE
+### 10. LIKE
 
 ```ts
 const query: StructuredQuery = {
@@ -226,7 +241,7 @@ const query: StructuredQuery = {
 
 ---
 
-## 11. NULL Checks
+### 11. NULL Checks
 
 ```ts
 const query: StructuredQuery = {
@@ -243,9 +258,9 @@ const query: StructuredQuery = {
 
 ---
 
-# Subqueries
+## Subqueries
 
-## 12. Subquery IN
+### 12. Subquery IN
 
 ```ts
 const query: StructuredQuery = {
@@ -273,7 +288,7 @@ const query: StructuredQuery = {
 
 ---
 
-## 13. EXISTS Query
+### 13. EXISTS Query
 
 ```ts
 const query: StructuredQuery = {
@@ -300,7 +315,7 @@ const query: StructuredQuery = {
 
 ---
 
-## 14. NOT EXISTS
+### 14. NOT EXISTS
 
 ```ts
 const query: StructuredQuery = {
@@ -327,9 +342,9 @@ const query: StructuredQuery = {
 
 ---
 
-# Joins
+## Joins
 
-## 15. LEFT JOIN
+### 15. LEFT JOIN
 
 ```ts
 const query: StructuredQuery = {
@@ -352,7 +367,7 @@ const query: StructuredQuery = {
 
 ---
 
-## 16. Complex JOIN Condition
+### 16. Complex JOIN Condition
 
 ```ts
 const query: StructuredQuery = {
@@ -387,7 +402,7 @@ const query: StructuredQuery = {
 
 ---
 
-## 17. Conditional JOIN
+### 17. Conditional JOIN
 
 ```ts
 const query: StructuredQuery = {
@@ -422,9 +437,9 @@ const query: StructuredQuery = {
 
 ---
 
-# Aggregation
+## Aggregation
 
-## 18. GROUP BY + ORDER BY
+### 18. GROUP BY + ORDER BY
 
 ```ts
 const query: StructuredQuery = {
@@ -444,7 +459,7 @@ const query: StructuredQuery = {
 
 ---
 
-## 19. Aggregate Functions
+### 19. Aggregate Functions
 
 ```ts
 const query: StructuredQuery = {
@@ -463,7 +478,7 @@ const query: StructuredQuery = {
 
 ---
 
-## 20. HAVING
+### 20. HAVING
 
 ```ts
 const query: StructuredQuery = {
@@ -487,9 +502,9 @@ const query: StructuredQuery = {
 
 ---
 
-# Pagination
+## Pagination
 
-## 21. Pagination Style Query
+### 21. Pagination Style Query
 
 ```ts
 const query: StructuredQuery = {
@@ -512,9 +527,9 @@ const query: StructuredQuery = {
 
 ---
 
-# Inserts
+## Inserts
 
-## 22. INSERT Single Row
+### 22. INSERT Single Row
 
 ```ts
 const query: StructuredQuery = {
@@ -531,7 +546,7 @@ const query: StructuredQuery = {
 
 ---
 
-## 23. INSERT Multiple Rows
+### 23. INSERT Multiple Rows
 
 ```ts
 const query: StructuredQuery = {
@@ -548,7 +563,7 @@ const query: StructuredQuery = {
 
 ---
 
-## 24. INSERT With Returning
+### 24. INSERT With returning
 
 ```ts
 const query: StructuredQuery = {
@@ -566,9 +581,9 @@ const query: StructuredQuery = {
 
 ---
 
-# Updates
+## Updates
 
-## 25. UPDATE
+### 25. UPDATE
 
 ```ts
 const query: StructuredQuery = {
@@ -589,7 +604,7 @@ const query: StructuredQuery = {
 
 ---
 
-## 26. Conditional UPDATE Logic
+### 26. Conditional UPDATE Logic
 
 ```ts
 const query: StructuredQuery = {
@@ -617,7 +632,7 @@ const query: StructuredQuery = {
 
 ---
 
-## 27. Soft Delete Pattern
+### 27. Soft Delete Pattern
 
 ```ts
 const query: StructuredQuery = {
@@ -639,9 +654,9 @@ const query: StructuredQuery = {
 
 ---
 
-# Deletes
+## Deletes
 
-## 28. DELETE
+### 28. DELETE
 
 ```ts
 const query: StructuredQuery = {
@@ -658,9 +673,9 @@ const query: StructuredQuery = {
 
 ---
 
-# Runtime Variables
+## Runtime Variables
 
-## 29. User Runtime Variables
+### 29. User Runtime Variables
 
 ```ts
 const query: StructuredQuery = {
@@ -678,7 +693,7 @@ const query: StructuredQuery = {
 
 ---
 
-## 30. Data Runtime Variables
+### 30. Data Runtime Variables
 
 ```ts
 const query: StructuredQuery = {
@@ -699,7 +714,7 @@ const query: StructuredQuery = {
 
 ---
 
-## 31. Column-to-Column Comparison
+### 31. Column-to-Column Comparison
 
 ```ts
 const query: StructuredQuery = {
@@ -717,9 +732,9 @@ const query: StructuredQuery = {
 
 ---
 
-# Workflows
+## Workflows
 
-## 32. Chained AFTER Queries
+### 32. Chained AFTER Queries
 
 ```ts
 const query: StructuredQuery = {
@@ -757,7 +772,7 @@ const query: StructuredQuery = {
 
 ---
 
-## 33. Recursive Conditional Workflow
+### 33. Recursive Conditional Workflow
 
 ```ts
 const query: StructuredQuery = {
@@ -800,9 +815,9 @@ const query: StructuredQuery = {
 
 ---
 
-# Enterprise Examples
+## Enterprise Examples
 
-## 34. Full Enterprise Query
+### 34. Full Enterprise Query
 
 ```ts
 const query: StructuredQuery = {
@@ -903,7 +918,7 @@ const query: StructuredQuery = {
 
 ---
 
-## 35. Row-Level Security Pattern
+### 35. Row-Level Security Pattern
 
 ```ts
 const query: StructuredQuery = {

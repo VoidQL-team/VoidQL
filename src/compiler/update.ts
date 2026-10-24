@@ -1,6 +1,10 @@
 import { getColumns, inArray } from "drizzle-orm";
 import { Compiler } from "./index.js";
 
+/* -------------------------------------------------------------------------- */
+/*                            UPDATE QUERY COMPILER                           */
+/* -------------------------------------------------------------------------- */
+
 declare module "./index.js" {
     interface Compiler {
         update():void;
@@ -16,13 +20,13 @@ Compiler.prototype.update = function() {
     q.where(this.where)
   }
 
-  const orderByFields =
+  const order_by_fields =
     this.resolve_order_by_fields() ??
     this.to_array(this.role_permissions?.order_by) ??
     [];
 
-  if (orderByFields.length > 0) {
-    q.orderBy(...orderByFields);
+  if (order_by_fields.length > 0) {
+    q.orderBy(...order_by_fields);
   }
 
   if(this.limit != null) q.limit(this.limit)
@@ -37,10 +41,10 @@ Compiler.prototype.update = function() {
       q.$returningId(fields);
       after_function = async (result:any) => {
         if(!result) return
-        const fieldName = Object.keys(result[0])[0];
+        const field_name = Object.keys(result[0])[0];
         const table:any = this.table
         const values = result.map((obj:any) => Object.values(obj)[0]);
-        const after = await this.db.select().from(table).where(inArray(table[fieldName], values)).execute()
+        const after = await this.db.select().from(table).where(inArray(table[field_name], values)).execute()
         return after
       }
     }else if (typeof q.output === 'function') {

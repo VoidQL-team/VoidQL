@@ -116,7 +116,7 @@ export type TableStructure = {
   table: Table;
 };
 
-export const BuildWhereOptionsDefaults:BuildWhereOptions = {
+export const build_where_options_defaults:BuildWhereOptions = {
   disable_triggers: false
 }
 

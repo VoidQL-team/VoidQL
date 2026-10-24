@@ -1,7 +1,7 @@
 import { expect } from "vitest";
 import { VoidQL } from "../../src";
 
-export default async function selectInSubquery(
+export default async function select_in_subquery(
   db,
   structure,
   local_user,

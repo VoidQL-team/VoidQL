@@ -2,7 +2,7 @@ import * as schema from './schema';
 import { VoidQL } from "../src";
 import { NONE, StructuredQuery, TableStructure } from "../src/types";
 import { it, expect } from "vitest";
-import { getDB } from "./runner/db-connection.mjs"
+import { get_db } from "./runner/db-connection.mjs"
 
 const db_host = process.env.DB_HOST || null;
 const db_user = process.env.DB_USER || null;
@@ -22,11 +22,11 @@ if(db_name == null) throw Error('DB name not passed')
 if(role == null) throw Error('Role not passed')
 if(structure == null) throw Error('Structure not passed')
 if(local_user == null) throw Error('User object not passed')
-if(selected_family == null) throw Error('Database family not selected')
+if(selected_family == null) throw Error('database family not selected')
 
-let db = await getDB(selected_family, db_host, db_user, db_pwd, db_name, schema)
+let db = await get_db(selected_family, db_host, db_user, db_pwd, db_name, schema)
 
-function injectSchemaIntoTable(config:Record<string, TableStructure>, schema:any) {
+function inject_schema_into_table(config:Record<string, TableStructure>, schema:any) {
   const result:any = {};
 
   for (const key in config) {
@@ -43,29 +43,29 @@ function injectSchemaIntoTable(config:Record<string, TableStructure>, schema:any
   return result;
 }
 
-structure = injectSchemaIntoTable(structure, schema)
+structure = inject_schema_into_table(structure, schema)
 
 it("should measure build and execute performance", async () => {
   // Measure build time
-  const buildStart = performance.now();
+  const build_start = performance.now();
 
   const built_query = await new VoidQL({ db, user: local_user, role, structure }).compile(query);
 
-  const buildTime = performance.now() - buildStart;
+  const build_time = performance.now() - build_start;
 
   // Measure execution time
-  const execStart = performance.now();
+  const exec_start = performance.now();
 
   const result = await built_query.execute();
 
-  const execTime = performance.now() - execStart;
+  const exec_time = performance.now() - exec_start;
 
   console.log(
     "Query result:\n",
     JSON.stringify(result, null, 2)
   );
-  console.log(`Build time: ${buildTime.toFixed(2)} ms`);
-  console.log(`Execute time: ${execTime.toFixed(2)} ms`);
+  console.log(`Build time: ${build_time.toFixed(2)} ms`);
+  console.log(`Execute time: ${exec_time.toFixed(2)} ms`);
 
   expect(result).toBeDefined();
 });

@@ -1,7 +1,7 @@
 import { expect } from "vitest";
 import { VoidQL } from "../../src";
 
-export default async function phasedTransaction(
+export default async function phased_transaction(
   db,
   structure,
   local_user,

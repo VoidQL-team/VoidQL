@@ -1,5 +1,9 @@
 import { Compiler } from "./index.js";
 
+/* -------------------------------------------------------------------------- */
+/*                            DELETE QUERY COMPILER                           */
+/* -------------------------------------------------------------------------- */
+
 declare module "./index.js" {
     interface Compiler {
         delete():void;
@@ -13,13 +17,13 @@ Compiler.prototype.delete = function() {
     q.where(this.where);
   }
 
-  const orderByFields =
+  const order_by_fields =
     this.resolve_order_by_fields() ??
     this.to_array(this.role_permissions?.order_by) ??
     [];
 
-  if (orderByFields.length > 0) {
-    q.orderBy(...orderByFields);
+  if (order_by_fields.length > 0) {
+    q.orderBy(...order_by_fields);
   }
 
   if(this.limit != null) q.limit(this.limit)

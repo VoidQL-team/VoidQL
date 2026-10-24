@@ -2,8 +2,8 @@
 
 import { spawn } from 'child_process';
 import { select } from './db-select.mjs';
-import { buildObject } from './object-builder.mjs';
-import { createConnection } from './db-connection.mjs';
+import { build_object } from './object-builder.mjs';
+import { create_connection } from './db-connection.mjs';
 import default_user from '../saved/user.mjs'
 import default_structure from '../saved/structure.mjs'
 import default_query from '../saved/query.mjs'
@@ -33,7 +33,7 @@ async function main() {
     }
   );
   let db_select = await select()
-  let db = await createConnection(db_select);
+  let db = await create_connection(db_select);
 
   const user_type = await prompts(
     {
@@ -52,7 +52,7 @@ async function main() {
 
   await save_to_file(user_type.role, '../saved/user_role.mjs')
 
-  const { result: user, go_back_to_select } = await buildObject('User body', '../saved/user.mjs', default_user);
+  const { result: user, go_back_to_select } = await build_object('User body', '../saved/user.mjs', default_user);
   if (go_back_to_select) {
     return
   }

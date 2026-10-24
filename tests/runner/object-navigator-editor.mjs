@@ -4,19 +4,19 @@ import { save_to_file } from "./save-to-file.mjs";
 /**
  * Interactive CLI JSON editor (objects + arrays)
  */
-export async function navigate_object(initialName = "Object", file_path, default_value = {}) {
+export async function navigate_object(initial_name = "Object", file_path, default_value = {}) {
   let root = structuredClone(default_value);
   let current_path = [];
 
-  const onCancel = () => {
+  const on_cancel = () => {
     console.log("\nCancelled by user");
     process.exit(1);
   };
 
-  const getCurrent = () =>
+  const get_current = () =>
     current_path.reduce((acc, key) => acc[key], root);
 
-  const parseValue = (val) => {
+  const parse_value = (val) => {
     try {
       return JSON.parse(val);
     } catch {
@@ -25,12 +25,12 @@ export async function navigate_object(initialName = "Object", file_path, default
   };
 
   while (true) {
-    const current = getCurrent();
-    const isArr = Array.isArray(current);
-    const keys = isArr ? [] : Object.keys(current);
+    const current = get_current();
+    const is_arr = Array.isArray(current);
+    const keys = is_arr ? [] : Object.keys(current);
 
     console.clear();
-    console.log(`Editing ${initialName}`);
+    console.log(`Editing ${initial_name}`);
     console.log(`current_path: ${current_path.join(".") || "root"}\n`);
 
     console.log("Full structure:");
@@ -42,11 +42,11 @@ export async function navigate_object(initialName = "Object", file_path, default
     // ========================
     // ARRAY MODE
     // ========================
-    if (isArr) {
+    if (is_arr) {
       choices = [
         { title: "Next", value: { type: "done" } },
         ...current.map((item, i) => ({
-          title: formatArrayItem(i, item),
+          title: format_array_item(i, item),
           value: { type: "index", index: i },
         })),
         { title: "➕ Add item", value: { type: "add-item" } },
@@ -67,7 +67,7 @@ export async function navigate_object(initialName = "Object", file_path, default
       choices = [
         { title: "Next", value: { type: "done" } },
         ...keys.map((k) => ({
-          title: formatKey(k, current[k]),
+          title: format_key(k, current[k]),
           value: { type: "key", key: k },
         })),
         { title: "➕ Add key", value: { type: "add" } },
@@ -88,32 +88,32 @@ export async function navigate_object(initialName = "Object", file_path, default
         message: "Select",
         choices,
       },
-      { onCancel }
+      { onCancel: on_cancel }
     );
 
-    if (!action) onCancel();
+    if (!action) on_cancel();
 
     // ========================
     // ARRAY HANDLING
     // ========================
-    if (isArr) {
+    if (is_arr) {
       if (action.type === "index") {
         const value = current[action.index];
 
-        if (isObject(value) || Array.isArray(value)) {
+        if (is_object(value) || Array.isArray(value)) {
           current_path.push(action.index);
         } else {
-          const { newValue } = await prompts(
+          const { new_value } = await prompts(
             {
               type: "text",
-              name: "newValue",
+              name: "new_value",
               message: `Edit [${action.index}]`,
               initial: JSON.stringify(value),
             },
-            { onCancel }
+            { onCancel: on_cancel }
           );
 
-          current[action.index] = parseValue(newValue);
+          current[action.index] = parse_value(new_value);
         }
       }
 
@@ -124,10 +124,10 @@ export async function navigate_object(initialName = "Object", file_path, default
             name: "value",
             message: "New item (JSON supported)",
           },
-          { onCancel }
+          { onCancel: on_cancel }
         );
 
-        current.push(parseValue(value));
+        current.push(parse_value(value));
       }
 
       else if (action.type === "delete-item") {
@@ -144,7 +144,7 @@ export async function navigate_object(initialName = "Object", file_path, default
                 { title: "Cancel", value: undefined }
             ],
           },
-          { onCancel }
+          { onCancel: on_cancel }
         );
 
         if (index !== undefined) {
@@ -160,20 +160,20 @@ export async function navigate_object(initialName = "Object", file_path, default
       if (action.type === "key") {
         const value = current[action.key];
 
-        if (isObject(value) || Array.isArray(value)) {
+        if (is_object(value) || Array.isArray(value)) {
           current_path.push(action.key);
         } else {
-          const { newValue } = await prompts(
+          const { new_value } = await prompts(
             {
               type: "text",
-              name: "newValue",
+              name: "new_value",
               message: `Edit "${action.key}"`,
               initial: JSON.stringify(value),
             },
-            { onCancel }
+            { onCancel: on_cancel }
           );
 
-          current[action.key] = parseValue(newValue);
+          current[action.key] = parse_value(new_value);
         }
       }
 
@@ -184,7 +184,7 @@ export async function navigate_object(initialName = "Object", file_path, default
             name: "key",
             message: "Key name",
           },
-          { onCancel }
+          { onCancel: on_cancel }
         );
 
         if (!key) continue;
@@ -195,10 +195,10 @@ export async function navigate_object(initialName = "Object", file_path, default
             name: "value",
             message: "Value (JSON supported)",
           },
-          { onCancel }
+          { onCancel: on_cancel }
         );
 
-        current[key] = parseValue(value);
+        current[key] = parse_value(value);
       }
 
       else if (action.type === "delete") {
@@ -212,7 +212,7 @@ export async function navigate_object(initialName = "Object", file_path, default
                 { title: "Cancel", value: null }
             ],
           },
-          { onCancel }
+          { onCancel: on_cancel }
         );
 
         if (!key) continue;
@@ -233,8 +233,8 @@ export async function navigate_object(initialName = "Object", file_path, default
     }
 
     if (action.type === "save-default") {
-      let resolvedPath = await save_to_file(root, file_path)
-      console.log(`Saved as default: ${resolvedPath}`);
+      let resolved_path = await save_to_file(root, file_path)
+      console.log(`Saved as default: ${resolved_path}`);
       await new Promise((r) => setTimeout(r, 1000)); // pause to show message
     }
   }
@@ -244,18 +244,18 @@ export async function navigate_object(initialName = "Object", file_path, default
 // Helpers
 // ------------------------
 
-function isObject(v) {
+function is_object(v) {
   return typeof v === "object" && v !== null && !Array.isArray(v);
 }
 
-function formatKey(key, value) {
+function format_key(key, value) {
   if (Array.isArray(value)) return `📚 ${key} (${value.length})`;
-  if (isObject(value)) return `📂 ${key}`;
+  if (is_object(value)) return `📂 ${key}`;
   return `📄 ${key}: ${JSON.stringify(value)}`;
 }
 
-function formatArrayItem(i, value) {
+function format_array_item(i, value) {
   if (Array.isArray(value)) return `📚 [${i}] (${value.length})`;
-  if (isObject(value)) return `📂 [${i}]`;
+  if (is_object(value)) return `📂 [${i}]`;
   return `📄 [${i}]: ${JSON.stringify(value)}`;
 }

@@ -15,6 +15,10 @@ import {
   TRIGGER_CUSTOM_VALUES,
 } from "../types.js";
 
+/* -------------------------------------------------------------------------- */
+/*                         TRIGGER TYPES & ACTIONS                            */
+/* -------------------------------------------------------------------------- */
+
 type TriggerValues = {
   before?: any | any[];
   after?: any | any[];
@@ -28,23 +32,23 @@ type TriggerContext = {
   structure: Structure;
   options: BuildWhereOptions;
   query: StructuredQuery;
-  tableMap: Record<string, any>;
-  tableName: string;
-  tableStruct: TableStructure;
+  table_map: Record<string, any>;
+  table_name: string;
+  table_struct: TableStructure;
   data?: Record<string, any> | Record<string, any>[];
-  buildWhere: (
+  build_where: (
     condition: WhereCondition | SubqueryCondition,
-    customData?: Record<string, any>,
+    custom_data?: Record<string, any>,
   ) => any;
-  resolveCustomValue: (
+  resolve_custom_value: (
     value: any,
-    customData?: Record<string, any>,
+    custom_data?: Record<string, any>,
   ) => any;
-  buildQuery: (
+  build_query: (
     query: StructuredQuery,
     values: TriggerValues,
   ) => Compiler;
-  evaluateCondition: (
+  evaluate_condition: (
     condition: WhereCondition | SubqueryCondition,
     values: TriggerValues,
   ) => Promise<boolean>;
@@ -62,12 +66,12 @@ export class Trigger {
     if ("if" in query) {
       const condition = query.if;
       this.action = async (values) => {
-        const shouldRun = await this.context.evaluateCondition(
+        const should_run = await this.context.evaluate_condition(
           condition.when,
           values,
         );
-        await this.executeAction(
-          shouldRun ? condition.do : condition.else,
+        await this.execute_action(
+          should_run ? condition.do : condition.else,
           values,
         );
       };
@@ -75,10 +79,10 @@ export class Trigger {
       if (type === "after_triggers") {
         throw new Error("Set triggers are only available before the query");
       }
-      this.action = async () => this.applySet(query.set);
+      this.action = async () => this.apply_set(query.set);
     } else if ("type" in query) {
       this.action = async (values) =>
-        this.context.buildQuery(query, values).execute();
+        this.context.build_query(query, values).execute();
     }
   }
 
@@ -87,7 +91,7 @@ export class Trigger {
     else return null
   }
 
-  private async executeAction(
+  private async execute_action(
     action: unknown,
     values: TriggerValues,
   ): Promise<void> {
@@ -102,12 +106,12 @@ export class Trigger {
       "type" in action
     ) {
       await this.context
-        .buildQuery(action as StructuredQuery, values)
+        .build_query(action as StructuredQuery, values)
         .execute();
     }
   }
 
-  private applySet(set: SetCondition): void {
+  private apply_set(set: SetCondition): void {
     const data = this.context.data;
     if (!data) {
       throw new Error("Cannot apply set trigger without target data");
@@ -115,11 +119,11 @@ export class Trigger {
 
     const rows = Array.isArray(data) ? data : [data];
     for (const row of rows) {
-      const where = this.context.buildWhere(set.when, row);
-      const value = sql`${this.context.resolveCustomValue(set.value, row)}`;
+      const where = this.context.build_where(set.when, row);
+      const value = sql`${this.context.resolve_custom_value(set.value, row)}`;
       const fallback =
         "else_value" in set
-          ? sql`${this.context.resolveCustomValue(set.else_value, row)}`
+          ? sql`${this.context.resolve_custom_value(set.else_value, row)}`
           : row[set.field] ?? sql`COALESCE(${value}, '')`;
 
       row[set.field] = sql`
@@ -145,6 +149,10 @@ declare module "./index.js" {
     ): void;
   }
 }
+
+/* -------------------------------------------------------------------------- */
+/*                            TRIGGER LIFECYCLE                               */
+/* -------------------------------------------------------------------------- */
 
 Compiler.prototype.define_triggers = function(endpoint: Endpoint) {
   if (this.options.disable_triggers || !endpoint.triggers) return;
@@ -181,17 +189,17 @@ Compiler.prototype.handle_after = async function(result: any): Promise<{ after: 
         : result;
 
     if (this.returning) {
-      const allowedFields = Object.keys(
+      const allowed_fields = Object.keys(
         this.resolve_returning_fields(),
       );
 
       result =
-        allowedFields.length === 0
+        allowed_fields.length === 0
           ? []
           : (after ?? []).map((row: Record<string, any>) => {
               const filtered: Record<string, any> = {};
 
-              for (const field of allowedFields) {
+              for (const field of allowed_fields) {
                 if (row != undefined && field in row) {
                   filtered[field] = row[field];
                 }
@@ -220,13 +228,13 @@ Compiler.prototype.build_triggers = function(
     structure: this.structure,
     options: this.options,
     query: this.query,
-    tableMap: this.table_map,
-    tableName: this.table_name,
-    tableStruct: this.table_structure,
+    table_map: this.table_map,
+    table_name: this.table_name,
+    table_struct: this.table_structure,
     data: this.data,
-    buildWhere: (condition, customData) =>
-      this.build_where(condition as WhereCondition, customData).condition,
-    evaluateCondition: async (condition, values) => {
+    build_where: (condition, custom_data) =>
+      this.build_where(condition as WhereCondition, custom_data).condition,
+    evaluate_condition: async (condition, values) => {
       if (typeof condition === "boolean") return condition;
 
       const scopes = {
@@ -235,48 +243,48 @@ Compiler.prototype.build_triggers = function(
         result: values.result,
         data: this.data,
       };
-      const referencedScopes = Object.entries(scopes)
+      const referenced_scopes = Object.entries(scopes)
         .filter(([scope]) =>
           this.requests_data(condition as WhereCondition, scope),
         );
-      const rowCount = referencedScopes.length > 0
+      const row_count = referenced_scopes.length > 0
         ? Math.max(
-            ...referencedScopes.map(([, value]) =>
+            ...referenced_scopes.map(([, value]) =>
               Array.isArray(value) ? value.length : value === undefined ? 0 : 1,
             ),
           )
         : 1;
-      if (rowCount === 0) return false;
+      if (row_count === 0) return false;
 
-      const rows = Array.from({ length: rowCount }, (_, index) => ({
+      const rows = Array.from({ length: row_count }, (_, index) => ({
         [TRIGGER_CUSTOM_VALUES]: Object.fromEntries(
-          referencedScopes.map(([scope, value]) => [
+          referenced_scopes.map(([scope, value]) => [
             scope,
             Array.isArray(value) ? value[index] : value,
           ]),
         ),
       }));
-      const builtConditions = rows.map((row) =>
+      const built_conditions = rows.map((row) =>
         this.build_where(condition as WhereCondition, row),
       );
       const where = rows.length > 1
-        ? this.and(builtConditions.map((built) => built.condition))
-        : builtConditions[0].condition;
-      const needsTable = builtConditions.some((built) => built.needs_table);
-      const compiled = this.compile_condition_query(where, needsTable);
+        ? this.and(built_conditions.map((built) => built.condition))
+        : built_conditions[0].condition;
+      const needs_table = built_conditions.some((built) => built.needs_table);
+      const compiled = this.compile_condition_query(where, needs_table);
       const output = await compiled.execute();
-      const firstResult = Array.isArray(output) ? output[0] : output;
-      const resultRow = Array.isArray(firstResult) ? firstResult[0] : firstResult;
-      return Boolean(resultRow?.result ?? 0);
+      const first_result = Array.isArray(output) ? output[0] : output;
+      const result_row = Array.isArray(first_result) ? first_result[0] : first_result;
+      return Boolean(result_row?.result ?? 0);
     },
-    resolveCustomValue: (value, customData) =>
-      this.resolve_custom_value(value, customData, {
+    resolve_custom_value: (value, custom_data) =>
+      this.resolve_custom_value(value, custom_data, {
         user: context.user,
         query: context.query,
-        table_map: context.tableMap,
-        table_name: context.tableName,
+        table_map: context.table_map,
+        table_name: context.table_name,
       }),
-    buildQuery: (query, triggerValues) =>
+    build_query: (query, trigger_values) =>
       new Compiler({
         db: this.db,
         user: this.user,
@@ -284,9 +292,9 @@ Compiler.prototype.build_triggers = function(
         structure: this.structure,
         options: { ...this.options, disable_triggers: true },
         query,
-        before_values: triggerValues.before,
-        after_values: triggerValues.after,
-        result_values: triggerValues.result,
+        before_values: trigger_values.before,
+        after_values: trigger_values.after,
+        result_values: trigger_values.result,
       }),
   };
 

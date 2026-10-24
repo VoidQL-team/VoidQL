@@ -1,5 +1,5 @@
 import * as schema from './schema';
-import { getDB } from "./runner/db-connection.mjs"
+import { get_db } from "./runner/db-connection.mjs"
 import path from "path";
 import fs from "fs/promises";
 import structure from "./auto_tests/auto_tests_structure"
@@ -21,9 +21,9 @@ if(db_pwd == null) throw Error('DB password not passed')
 if(db_name == null) throw Error('DB name not passed')
 if(role == null) throw Error('Role not passed')
 if(local_user == null) throw Error('User object not passed')
-if(selected_family == null) throw Error('Database family not selected')
+if(selected_family == null) throw Error('database family not selected')
 
-let db = await getDB(selected_family, db_host, db_user, db_pwd, db_name, schema)
+let db = await get_db(selected_family, db_host, db_user, db_pwd, db_name, schema)
 
 type TestStatus = "passed" | "failed" | "missing" | "invalid";
 
@@ -31,7 +31,7 @@ type TestResult =
   | { file: string; status: TestStatus; error?: unknown }
   | { file: string; status: TestStatus };
 
-function injectSchemaIntoTable(config:Record<string, TableStructure>, schema:any) {
+function inject_schema_into_table(config:Record<string, TableStructure>, schema:any) {
   const result:any = {};
 
   for (const key in config) {
@@ -48,32 +48,32 @@ function injectSchemaIntoTable(config:Record<string, TableStructure>, schema:any
   return result;
 }
 
-let injected_structure = injectSchemaIntoTable(structure as any, schema)
+let injected_structure = inject_schema_into_table(structure as any, schema)
 
-async function runTests(mode: "sequential" | "parallel" = "sequential") {
+async function run_tests(mode: "sequential" | "parallel" = "sequential") {
   const dir = path.resolve("./tests/auto_tests");
 
   const files = await fs.readdir(dir);
 
-  const testFiles = files
+  const test_files = files
     .filter((f) => f.startsWith("test_") && f.endsWith(".js"))
     .sort();
 
-  const runOne = async (file: string): Promise<TestResult> => {
-    const filePath = path.resolve(dir, file);
+  const run_one = async (file: string): Promise<TestResult> => {
+    const file_path = path.resolve(dir, file);
 
     let module;
 
     try {
-      module = await import(filePath);
+      module = await import(file_path);
     } catch (err: any) {
       console.warn(`${file} failed to import`, err.message);
       return { file, status: "missing" };
     }
 
-    const testFn = module.default;
+    const test_fn = module.default;
 
-    if (typeof testFn !== "function") {
+    if (typeof test_fn !== "function") {
       console.warn(`${file} has no default export function`);
       return { file, status: "invalid" };
     }
@@ -81,7 +81,7 @@ async function runTests(mode: "sequential" | "parallel" = "sequential") {
     console.log(`Running ${file}`);
 
     try {
-      await testFn(db, injected_structure, local_user, role);
+      await test_fn(db, injected_structure, local_user, role);
       return { file, status: "passed" };
     } catch (err) {
       console.error(`${file} failed`, err);
@@ -92,18 +92,18 @@ async function runTests(mode: "sequential" | "parallel" = "sequential") {
   if (mode === "sequential") {
     const results: TestResult[] = [];
 
-    for (const file of testFiles) {
-      results.push(await runOne(file));
+    for (const file of test_files) {
+      results.push(await run_one(file));
     }
 
     return results;
   }
 
-  return Promise.all(testFiles.map(runOne));
+  return Promise.all(test_files.map(run_one));
 }
 
 it("runs VoidQL auto test suite", async () => {
-  const results = await runTests(
+  const results = await run_tests(
     run_mode === "parallel" ? "parallel" : "sequential"
   );
 

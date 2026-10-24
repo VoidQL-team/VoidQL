@@ -1,7 +1,7 @@
 import { expect } from "vitest";
 import { VoidQL } from "../../src";
 
-export default async function postTest(
+export default async function post_test(
   db,
   structure,
   local_user,

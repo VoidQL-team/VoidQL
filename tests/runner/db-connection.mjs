@@ -1,18 +1,18 @@
 import prompts from "prompts";
 
-import { drizzle as mysqlDrizzle } from "drizzle-orm/mysql2";
-import { drizzle as pgDrizzle } from "drizzle-orm/node-postgres";
-import { drizzle as postgresJsDrizzle } from "drizzle-orm/postgres-js";
-import { drizzle as neonDrizzle } from "drizzle-orm/neon-http";
-import { drizzle as vercelDrizzle } from "drizzle-orm/vercel-postgres";
-import { drizzle as libsqlDrizzle } from "drizzle-orm/libsql";
-import { drizzle as d1Drizzle } from "drizzle-orm/d1";
-import { drizzle as betterSqliteDrizzle } from "drizzle-orm/better-sqlite3";
-import { drizzle as pgliteDrizzle } from "drizzle-orm/pglite";
-import { drizzle as mssqlDrizzle } from 'drizzle-orm/node-mssql';
+import { drizzle as mysql_drizzle } from "drizzle-orm/mysql2";
+import { drizzle as pg_drizzle } from "drizzle-orm/node-postgres";
+import { drizzle as postgres_js_drizzle } from "drizzle-orm/postgres-js";
+import { drizzle as neon_drizzle } from "drizzle-orm/neon-http";
+import { drizzle as vercel_drizzle } from "drizzle-orm/vercel-postgres";
+import { drizzle as libsql_drizzle } from "drizzle-orm/libsql";
+import { drizzle as d1_drizzle } from "drizzle-orm/d1";
+import { drizzle as better_sqlite_drizzle } from "drizzle-orm/better-sqlite3";
+import { drizzle as pglite_drizzle } from "drizzle-orm/pglite";
+import { drizzle as mssql_drizzle } from 'drizzle-orm/node-mssql';
 
-export async function createConnection(db_select, config = {}) {
-  const onCancel = () => {
+export async function create_connection(db_select, config = {}) {
+  const on_cancel = () => {
     console.log("\nCancelled by user");
     process.exit(1);
   };
@@ -41,12 +41,12 @@ export async function createConnection(db_select, config = {}) {
       name: "db_name",
       message: `Enter ${db_select.family} db name`,
     },
-  ], { onCancel });
+  ], { onCancel: on_cancel });
 
   return { db_address, user_name, password, db_name };
 }
 
-export async function getDB(family, db_address, user_name, password, db_name, schema) {
+export async function get_db(family, db_address, user_name, password, db_name, schema) {
   let db;
 
   switch (family) {
@@ -62,7 +62,7 @@ export async function getDB(family, db_address, user_name, password, db_name, sc
         port: 3306,
       });
 
-      db = mysqlDrizzle({
+      db = mysql_drizzle({
         client: pool,
         schema,
         mode: "default",
@@ -81,7 +81,7 @@ export async function getDB(family, db_address, user_name, password, db_name, sc
         port: 5432,
       });
 
-      db = pgDrizzle({
+      db = pg_drizzle({
         client: pool,
         schema,
         mode: "default",
@@ -96,7 +96,7 @@ export async function getDB(family, db_address, user_name, password, db_name, sc
         `postgres://${user_name}:${password}@${db_address}:5432/${db_name}`
       );
 
-      db = postgresJsDrizzle(client, { schema, mode: 'default' });
+      db = postgres_js_drizzle(client, { schema, mode: 'default' });
       break;
     }
 
@@ -108,35 +108,35 @@ export async function getDB(family, db_address, user_name, password, db_name, sc
         `postgres://${user_name}:${password}@${db_address}/${db_name}`
       );
 
-      db = neonDrizzle(sql, { schema, mode: 'default' });
+      db = neon_drizzle(sql, { schema, mode: 'default' });
       break;
     }
 
     case "vercel-pg": {
       const { sql } = await import("@vercel/postgres");
 
-      db = vercelDrizzle(sql, { schema, mode: 'default' });
+      db = vercel_drizzle(sql, { schema, mode: 'default' });
       break;
     }
 
     case "better-sqlite3": {
-      const Database = (await import("better-sqlite3")).default;
+      const database = (await import("better-sqlite3")).default;
 
-      const sqlite = new Database(db_name);
+      const sqlite = new database(db_name);
 
-      db = betterSqliteDrizzle(sqlite, { schema, mode: 'default' });
+      db = better_sqlite_drizzle(sqlite, { schema, mode: 'default' });
       break;
     }
 
     case "libsql": {
-      const { createClient } = await import("@libsql/client");
+      const { createClient: create_client } = await import("@libsql/client");
 
-      const client = createClient({
+      const client = create_client({
         url: db_address,
         authToken: password,
       });
 
-      db = libsqlDrizzle(client, { schema, mode: 'default' });
+      db = libsql_drizzle(client, { schema, mode: 'default' });
       break;
     }
 
@@ -146,7 +146,7 @@ export async function getDB(family, db_address, user_name, password, db_name, sc
         throw new Error("Missing D1 binding in config");
       }
 
-      db = d1Drizzle(config.d1);
+      db = d1_drizzle(config.d1);
       break;
     }
 
@@ -155,13 +155,13 @@ export async function getDB(family, db_address, user_name, password, db_name, sc
 
       const client = new PGlite();
 
-      db = pgliteDrizzle(client, { schema, mode: 'default' });
+      db = pglite_drizzle(client, { schema, mode: 'default' });
       break;
     }
 
     case "mssql": {
-      const mssqlModule = await import("mssql");
-      const mssql = mssqlModule.default ?? mssqlModule;
+      const mssql_module = await import("mssql");
+      const mssql = mssql_module.default ?? mssql_module;
 
       const pool = await mssql.connect({
         user: user_name,
@@ -184,13 +184,13 @@ export async function getDB(family, db_address, user_name, password, db_name, sc
 
     case "aws-pg": {
       const { RDSDataClient } = await import("@aws-sdk/client-rds-data");
-      const { drizzle: awsDrizzle } = await import("drizzle-orm/aws-data-api/pg");
+      const { drizzle: aws_drizzle } = await import("drizzle-orm/aws-data-api/pg");
 
       const client = new RDSDataClient({
         region: config.region,
       });
 
-      db = awsDrizzle(client, {
+      db = aws_drizzle(client, {
         database: db_name,
         secretArn: config.secretArn,
         resourceArn: config.resourceArn,

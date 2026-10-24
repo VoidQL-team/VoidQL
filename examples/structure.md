@@ -1,6 +1,6 @@
-# Complete Structure Examples (Full DSL Coverage)
+# Complete Structure Examples
 
-This document demonstrates the **full capability surface** of the structure system:
+This document demonstrates the full capability of the structure system:
 
 - endpoints
 - roles
@@ -12,9 +12,27 @@ This document demonstrates the **full capability surface** of the structure syst
 - returning
 - row-level constraints
 
----
+## Contents
 
-# 1. Minimal Structure
+- [Minimal Structure](#1-minimal-structure)
+- [Wildcard Access](#2-wildcard-access)
+- [Simple Role Split](#3-simple-role-split-user-vs-admin)
+- [Field-Level Deny Override](#4-field-level-deny-override)
+- [Conditional Allowed Fields](#5-conditional-allowed-fields)
+- [Conditional Wildcard Allow](#6-conditional-wildcard-allow)
+- [Complex Where Conditions](#7-complex-where-conditions-multi-condition-field-gating)
+- [Role-Based Limits and Ordering](#8-role-based-limits-and-ordering)
+- [Returning Control](#9-returning-control)
+- [Endpoint Get Example](#10-endpoint-get-full-example)
+- [Update Field Validation](#11-update-with-strict-field-validation)
+- [Insert Role Control](#12-insert-with-role-control)
+- [Restricted Delete](#13-delete-restricted)
+- [Before Triggers](#14-before-triggers-row-mutation)
+- [After Triggers](#15-after-triggers-audit-side-effects)
+- [Full Structure Example](#16-full-enterprise-structure)
+- [Summary](#summary)
+
+## 1. Minimal Structure
 
 ```ts
 export default {
@@ -37,7 +55,7 @@ export default {
 
 ---
 
-# 2. Wildcard Access
+## 2. Wildcard Access
 
 ```ts
 {
@@ -50,7 +68,7 @@ export default {
 
 ---
 
-# 3. Simple Role Split (User vs Admin)
+## 3. Simple Role Split (User vs Admin)
 
 ```ts
 {
@@ -68,7 +86,7 @@ export default {
 
 ---
 
-# 4. Field-Level Deny Override
+## 4. Field-Level Deny Override
 
 ```ts
 {
@@ -81,7 +99,7 @@ export default {
 
 ---
 
-# 5. Conditional Allowed Fields
+## 5. Conditional Allowed Fields
 
 ```ts
 {
@@ -103,7 +121,7 @@ export default {
 
 ---
 
-# 6. Conditional Wildcard Allow
+## 6. Conditional Wildcard Allow
 
 ```ts
 {
@@ -125,7 +143,7 @@ export default {
 
 ---
 
-# 7. Complex WHERE (Multi-condition field gating)
+## 7. Complex WHERE Conditions (Multi-condition Field Gating)
 
 ```ts
 {
@@ -168,7 +186,7 @@ export default {
 
 ---
 
-# 8. Role-Based Limits + Ordering
+## 8. Role-Based Limits and Ordering
 
 ```ts
 {
@@ -190,7 +208,7 @@ export default {
 
 ---
 
-# 9. Returning Control
+## 9. Returning Control
 
 ```ts
 {
@@ -209,7 +227,7 @@ export default {
 
 ---
 
-# 10. Endpoint GET Full Example
+## 10. Endpoint GET Full Example
 
 ```ts
 {
@@ -238,7 +256,7 @@ export default {
 
 ---
 
-# 11. UPDATE with Strict Field Validation
+## 11. Update with Strict Field Validation
 
 ```ts
 {
@@ -278,7 +296,7 @@ export default {
 
 ---
 
-# 12. INSERT with Role Control
+## 12. Insert with Role Control
 
 ```ts
 {
@@ -298,7 +316,7 @@ export default {
 
 ---
 
-# 13. DELETE (Restricted)
+## 13. Delete (Restricted)
 
 ```ts
 {
@@ -318,7 +336,7 @@ export default {
 
 ---
 
-# 14. BEFORE Triggers (Row Mutation)
+## 14. Before Triggers (Row Mutation)
 
 ```ts
 {
@@ -370,7 +388,7 @@ export default {
 
 ---
 
-# 15. AFTER Triggers (Audit / Side Effects)
+## 15. After Triggers (Audit / Side Effects)
 
 ```ts
 {
@@ -404,7 +422,7 @@ export default {
 
 ---
 
-# 16. Full Enterprise Structure
+## 16. Full Enterprise Structure
 
 ```ts
 export default {
@@ -519,7 +537,7 @@ export default {
 
 ---
 
-# Summary
+## Summary
 
 This DSL supports:
 

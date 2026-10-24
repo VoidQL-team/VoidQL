@@ -1,7 +1,7 @@
 import { expect } from "vitest";
 import { VoidQL } from "../../src";
 
-export default async function selectGroupOrder(
+export default async function select_group_order(
   db,
   structure,
   local_user,

@@ -52,29 +52,29 @@ Compiler.prototype.is_allowed_field = function(entry:string):boolean {
         field = entry;
     }
 
-    const tableStruct = this.structure[table];
-    if (!tableStruct) throw new Error(`Unknown table '${table}'`);
+    const table_struct = this.structure[table];
+    if (!table_struct) throw new Error(`Unknown table '${table}'`);
 
-    const endpoint = tableStruct.endpoints.find(e => e.type.toUpperCase() === this.type.toUpperCase());
+    const endpoint = table_struct.endpoints.find(e => e.type.toUpperCase() === this.type.toUpperCase());
     if (!endpoint) throw new Error(`${this.type} not allowed on ${table}`);
 
-    const rolePermissions = endpoint[this.role];
-    if (typeof rolePermissions !== "object" || !rolePermissions || Array.isArray(rolePermissions)) {
+    const role_permissions = endpoint[this.role];
+    if (typeof role_permissions !== "object" || !role_permissions || Array.isArray(role_permissions)) {
         return false;
     }
 
     const allowed =
-        'allowed' in rolePermissions
-            ? rolePermissions.allowed
-            : 'allow' in rolePermissions
-            ? rolePermissions.allow
+        'allowed' in role_permissions
+            ? role_permissions.allowed
+            : 'allow' in role_permissions
+            ? role_permissions.allow
             : [];
 
     const disallowed =
-        'disallowed' in rolePermissions
-            ? rolePermissions.disallowed ?? []
-            : 'deny' in rolePermissions
-            ? rolePermissions.deny ?? []
+        'disallowed' in role_permissions
+            ? role_permissions.disallowed ?? []
+            : 'deny' in role_permissions
+            ? role_permissions.deny ?? []
             : [];
 
     if (!resolve_allowed_fields(field, allowed, disallowed)) {
@@ -148,32 +148,32 @@ function apply_aggregate(
     }
 }
 
-function normalizeOp(op: string): string {
+function normalize_op(op: string): string {
     return op
         .trim()
         .replace(/_/g, "")
         .toUpperCase();
 }
 
-function get_custom_field(rawEntry: string): ParsedField {
-    if (!rawEntry.startsWith("$")) {
-        return { aggregate: null, field: rawEntry };
+function get_custom_field(raw_entry: string): ParsedField {
+    if (!raw_entry.startsWith("$")) {
+        return { aggregate: null, field: raw_entry };
     }
 
-    const dotIndex = rawEntry.indexOf(".");
+    const dot_index = raw_entry.indexOf(".");
 
-    if (dotIndex === -1) {
-        return { aggregate: null, field: rawEntry };
+    if (dot_index === -1) {
+        return { aggregate: null, field: raw_entry };
     }
 
-    const opRaw = normalizeOp(rawEntry.slice(1, dotIndex));
-    const field = rawEntry.slice(dotIndex + 1);
+    const op_raw = normalize_op(raw_entry.slice(1, dot_index));
+    const field = raw_entry.slice(dot_index + 1);
 
     if (!field) {
-        return { aggregate: null, field: rawEntry };
+        return { aggregate: null, field: raw_entry };
     }
 
-    const op = opRaw as AggregateOp;
+    const op = op_raw as AggregateOp;
 
     if (AGGREGATES.has(op)) {
         return {
@@ -184,7 +184,7 @@ function get_custom_field(rawEntry: string): ParsedField {
 
     return {
         aggregate: null,
-        field: rawEntry,
+        field: raw_entry,
     };
 }
 
@@ -193,14 +193,14 @@ Compiler.prototype.resolve_fields = function(
     type: string,
     default_table: string,
 ) {
-    const allowedFields: Record<string, any> = {};
+    const allowed_fields: Record<string, any> = {};
 
-    if (!fields) return allowedFields;
+    if (!fields) return allowed_fields;
 
     const entries = Array.isArray(fields) ? fields : [fields];
 
-    for (const rawEntry of entries) {
-        let { field: entry, aggregate } = get_custom_field(rawEntry)
+    for (const raw_entry of entries) {
+        let { field: entry, aggregate } = get_custom_field(raw_entry)
 
         const [table, field] = entry.includes(".")
             ? entry.split(".")
@@ -208,12 +208,12 @@ Compiler.prototype.resolve_fields = function(
 
         console.log(table)
 
-        const tableStruct = this.structure[table];
-        if (!tableStruct) {
+        const table_struct = this.structure[table];
+        if (!table_struct) {
             throw new Error(`Unknown table '${table}'`);
         }
 
-        const endpoint = tableStruct.endpoints.find(e => e.type.toUpperCase() === type.toUpperCase());
+        const endpoint = table_struct.endpoints.find(e => e.type.toUpperCase() === type.toUpperCase());
         if (!endpoint) {
             throw new Error(`${type} not allowed on ${table}`);
         }
@@ -231,50 +231,50 @@ Compiler.prototype.resolve_fields = function(
         const allowed = permissions.allowed ?? permissions.allow ?? [];
         const disallowed = permissions.disallowed ?? permissions.deny ?? [];
 
-        const tableFields = this.table_map[table];
+        const table_fields = this.table_map[table];
 
-        const addField = (fieldName: string) => {
-            if (!resolve_allowed_fields(fieldName, allowed, disallowed)) {
+        const add_field = (field_name: string) => {
+            if (!resolve_allowed_fields(field_name, allowed, disallowed)) {
                 return;
             }
 
-            const fieldRef = tableFields[fieldName];
+            const field_ref = table_fields[field_name];
 
-            if (fieldRef === undefined) {
+            if (field_ref === undefined) {
                 throw new Error(
-                    `Field '${fieldName}' does not exist on table '${table}'`
+                    `Field '${field_name}' does not exist on table '${table}'`
                 );
             }
 
             const key = aggregate
-                ? `${aggregate}.${table}.${fieldName}`
-                : `${table}.${fieldName}`;
+                ? `${aggregate}.${table}.${field_name}`
+                : `${table}.${field_name}`;
 
-                allowedFields[key] = apply_aggregate(fieldRef, aggregate);
+                allowed_fields[key] = apply_aggregate(field_ref, aggregate);
         };
 
         if (field === "*") {
-            for (const fieldName in tableFields) {
-                addField(fieldName);
+            for (const field_name in table_fields) {
+                add_field(field_name);
             }
         } else {
-            addField(field);
+            add_field(field);
         }
     }
 
-    return allowedFields;
+    return allowed_fields;
 }
 
 Compiler.prototype.resolve_returning_fields = function() {
-    const allowedFields: Record<string, any> = {};
+    const allowed_fields: Record<string, any> = {};
 
-    if (!this.returning) return allowedFields;
+    if (!this.returning) return allowed_fields;
 
     const entries = Array.isArray(this.returning) ? this.returning : [this.returning];
 
-    for (const rawEntry of entries) {
+    for (const raw_entry of entries) {
         // hard disable count
-        const parsed = get_custom_field(rawEntry);
+        const parsed = get_custom_field(raw_entry);
 
         if (parsed.aggregate) {
             throw new Error(
@@ -282,18 +282,18 @@ Compiler.prototype.resolve_returning_fields = function() {
             );
         }
 
-        const entry = rawEntry;
+        const entry = raw_entry;
 
         const [table, field] = entry.includes(".")
             ? entry.split(".")
             : [this.table_name, entry];
 
-        const tableStruct = this.structure[table];
-        if (!tableStruct) {
+        const table_struct = this.structure[table];
+        if (!table_struct) {
             throw new Error(`Unknown table '${table}'`);
         }
 
-        const endpoint = tableStruct.endpoints.find(e => e.type.toUpperCase() === this.type.toUpperCase());
+        const endpoint = table_struct.endpoints.find(e => e.type.toUpperCase() === this.type.toUpperCase());
         if (!endpoint) {
             throw new Error(`${this.type} not allowed on ${table}`);
         }
@@ -310,10 +310,10 @@ Compiler.prototype.resolve_returning_fields = function() {
 
         const returning = permissions.returning;
 
-        const tableFields = this.table_map[table];
+        const table_fields = this.table_map[table];
 
-        if (!tableFields) {
-            throw new Error(`Unknown table '${table}' in tableMap`);
+        if (!table_fields) {
+            throw new Error(`Unknown table '${table}' in table_map`);
         }
 
         // ----------------------------
@@ -322,24 +322,24 @@ Compiler.prototype.resolve_returning_fields = function() {
         if (typeof returning === "boolean") {
             if (!returning) continue;
 
-            const addField = (fieldName: string) => {
-                const fieldRef = tableFields[fieldName];
+            const add_field = (field_name: string) => {
+                const field_ref = table_fields[field_name];
 
-                if (fieldRef === undefined) {
+                if (field_ref === undefined) {
                     throw new Error(
-                        `Field '${fieldName}' does not exist on table '${table}'`
+                        `Field '${field_name}' does not exist on table '${table}'`
                     );
                 }
 
-                allowedFields[fieldName] = fieldRef;
+                allowed_fields[field_name] = field_ref;
             };
 
             if (field === "*") {
-                for (const fieldName in tableFields) {
-                    addField(fieldName);
+                for (const field_name in table_fields) {
+                    add_field(field_name);
                 }
             } else {
-                addField(field);
+                add_field(field);
             }
 
             continue;
@@ -351,34 +351,34 @@ Compiler.prototype.resolve_returning_fields = function() {
         const allowed = returning?.allowed ?? returning?.allow ?? [];
         const disallowed = returning?.disallowed ?? returning?.deny ?? [];
 
-        const addField = (fieldName: string) => {
+        const add_field = (field_name: string) => {
             if (
-                !resolve_allowed_fields(fieldName, allowed, disallowed)
+                !resolve_allowed_fields(field_name, allowed, disallowed)
             ) {
                 return;
             }
 
-            const fieldRef = tableFields[fieldName];
+            const field_ref = table_fields[field_name];
 
-            if (fieldRef === undefined) {
+            if (field_ref === undefined) {
                 throw new Error(
-                    `Field '${fieldName}' does not exist on table '${table}'`
+                    `Field '${field_name}' does not exist on table '${table}'`
                 );
             }
 
-            allowedFields[fieldName] = fieldRef;
+            allowed_fields[field_name] = field_ref;
         };
 
         if (field === "*") {
-            for (const fieldName in tableFields) {
-                addField(fieldName);
+            for (const field_name in table_fields) {
+                add_field(field_name);
             }
         } else {
-            addField(field);
+            add_field(field);
         }
     }
 
-    return allowedFields;
+    return allowed_fields;
 }
 
 Compiler.prototype.resolve_group_by_fields = function() {
@@ -424,24 +424,24 @@ Compiler.prototype.resolve_group_by_fields = function() {
       field = raw;
     }
 
-    const tableStruct = this.structure[table];
-    if (!tableStruct) throw new Error(`Unknown table '${table}'`);
+    const table_struct = this.structure[table];
+    if (!table_struct) throw new Error(`Unknown table '${table}'`);
 
-    const endpoint = tableStruct.endpoints.find(e => e.type.toUpperCase() === this.type.toUpperCase());
+    const endpoint = table_struct.endpoints.find(e => e.type.toUpperCase() === this.type.toUpperCase());
     if (!endpoint) throw new Error(`${this.type} not allowed on ${table}`);
 
-    const rolePermissions = endpoint[this.role];
-    if (!rolePermissions || typeof rolePermissions !== "object") return;
+    const role_permissions = endpoint[this.role];
+    if (!role_permissions || typeof role_permissions !== "object") return;
 
     const allowed =
-      "allowed" in rolePermissions
-        ? rolePermissions.allowed
-        : rolePermissions.allow ?? [];
+      "allowed" in role_permissions
+        ? role_permissions.allowed
+        : role_permissions.allow ?? [];
 
     const disallowed =
-      "disallowed" in rolePermissions
-        ? rolePermissions.disallowed ?? []
-        : rolePermissions.deny ?? [];
+      "disallowed" in role_permissions
+        ? role_permissions.disallowed ?? []
+        : role_permissions.deny ?? [];
 
     // -----------------------------
     // permission check
@@ -529,9 +529,9 @@ Compiler.prototype.resolve_order_by_fields = function() {
         // Validate table
         // -----------------------------------
 
-        const tableStruct = this.structure[table];
+        const table_struct = this.structure[table];
 
-        if (!tableStruct) {
+        if (!table_struct) {
             throw new Error(`Unknown table '${table}'`);
         }
 
@@ -539,7 +539,7 @@ Compiler.prototype.resolve_order_by_fields = function() {
         // Validate endpoint
         // -----------------------------------
 
-        const endpoint = tableStruct.endpoints.find(
+        const endpoint = table_struct.endpoints.find(
             (e) => e.type.toUpperCase() === this.type.toUpperCase()
         );
 
@@ -551,28 +551,28 @@ Compiler.prototype.resolve_order_by_fields = function() {
         // Validate role permissions
         // -----------------------------------
 
-        const rolePermissions = endpoint[this.role];
+        const role_permissions = endpoint[this.role];
 
         if (
-            typeof rolePermissions !== "object" ||
-            !rolePermissions ||
-            Array.isArray(rolePermissions)
+            typeof role_permissions !== "object" ||
+            !role_permissions ||
+            Array.isArray(role_permissions)
         ) {
             return;
         }
 
         const allowed =
-            "allowed" in rolePermissions
-                ? rolePermissions.allowed
-                : "allow" in rolePermissions
-                ? rolePermissions.allow
+            "allowed" in role_permissions
+                ? role_permissions.allowed
+                : "allow" in role_permissions
+                ? role_permissions.allow
                 : [];
 
         const disallowed =
-            "disallowed" in rolePermissions
-                ? rolePermissions.disallowed ?? []
-                : "deny" in rolePermissions
-                ? rolePermissions.deny ?? []
+            "disallowed" in role_permissions
+                ? role_permissions.disallowed ?? []
+                : "deny" in role_permissions
+                ? role_permissions.deny ?? []
                 : [];
 
         // -----------------------------------
@@ -624,33 +624,33 @@ Compiler.prototype.to_array = function<T>(v: T | T[] | null | undefined): T[] {
   return Array.isArray(v) ? v : [v];
 }
 
-function matchesField(field: string, rule: string): boolean {
+function matches_field(field: string, rule: string): boolean {
 	if (rule === "*") return true;
 	return rule === field;
 }
 
-function matchesPermission(
+function matches_permission(
 	field: string,
 	permission?: FieldPermission
 ): boolean {
 	if (!permission) return false;
 
 	if (typeof permission === "string") {
-		return matchesField(field, permission);
+		return matches_field(field, permission);
 	}
 
 	if (Array.isArray(permission)) {
-		return permission.some(rule => matchesField(field, rule));
+		return permission.some(rule => matches_field(field, rule));
 	}
 
 	if (typeof permission === "object") {
 		const rule = permission.field;
 
 		if (Array.isArray(rule)) {
-			return rule.some(r => matchesField(field, r));
+			return rule.some(r => matches_field(field, r));
 		}
 
-		return matchesField(field, rule);
+		return matches_field(field, rule);
 	}
 
 	return false;
@@ -662,16 +662,16 @@ function resolve_allowed_fields(
 	disallowed?: FieldPermission
 ): boolean {
 	// Field must match allowed rules
-	const allowedMatch = matchesPermission(field, allowed);
+	const allowed_match = matches_permission(field, allowed);
 
-	if (!allowedMatch) {
+	if (!allowed_match) {
 		return false;
 	}
 
 	// Field must NOT match disallowed rules
-	const disallowedMatch = matchesPermission(field, disallowed);
+	const disallowed_match = matches_permission(field, disallowed);
 
-	if (disallowedMatch) {
+	if (disallowed_match) {
 		return false;
 	}
 
@@ -692,11 +692,11 @@ Compiler.prototype.strip_prefixes = function(input: any) {
         const cleaned: Record<string, any> = {};
 
         for (const [key, value] of Object.entries(input)) {
-            let cleanKey = key.includes(".") ? key.split(".").pop()! : key;
-            if (Object.prototype.hasOwnProperty.call(cleaned, cleanKey)) {
-                cleanKey = key.includes(".") ? key.replace(".", "_") : `${key}_${value}`;
+            let clean_key = key.includes(".") ? key.split(".").pop()! : key;
+            if (Object.prototype.hasOwnProperty.call(cleaned, clean_key)) {
+                clean_key = key.includes(".") ? key.replace(".", "_") : `${key}_${value}`;
             }
-            cleaned[cleanKey] = this.strip_prefixes(value);
+            cleaned[clean_key] = this.strip_prefixes(value);
         }
 
         return cleaned;
@@ -715,28 +715,28 @@ function is_undefined(v: any) {
     return v;
 }
 
-function escapeRegex(str: string) {
+function escape_regex(str: string) {
   return str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
-function isDataRef(value: unknown, kind: string): boolean {
-  const safeKind = escapeRegex(kind);
-  const DATA_REF_REGEX = new RegExp(`^\\$(${safeKind})\\.(.+)$`);
+function is_data_ref(value: unknown, kind: string): boolean {
+  const safe_kind = escape_regex(kind);
+  const DATA_REF_REGEX = new RegExp(`^\\$(${safe_kind})\\.(.+)$`);
 
   return typeof value === "string" && DATA_REF_REGEX.test(value);
 }
 
-function checkObject(obj: Record<string, any>, kind: string): boolean {
+function check_object(obj: Record<string, any>, kind: string): boolean {
   return Object.values(obj).some((value) =>
-    isDataRef(value, kind)
+    is_data_ref(value, kind)
   );
 }
 
-function getEndpoint(structure: Structure, table: string, type: string) {
-  const tableStruct = structure[table];
-  if (!tableStruct) throw new Error(`Unknown table '${table}'`);
+function get_endpoint(structure: Structure, table: string, type: string) {
+  const table_struct = structure[table];
+  if (!table_struct) throw new Error(`Unknown table '${table}'`);
 
-  const endpoint = tableStruct.endpoints.find(
+  const endpoint = table_struct.endpoints.find(
     (e) => e.type.toUpperCase() === type.toUpperCase()
   );
 
@@ -745,40 +745,40 @@ function getEndpoint(structure: Structure, table: string, type: string) {
   return endpoint;
 }
 
-function getPermissions(endpoint: any, role: string) {
-  const rolePermissions = endpoint[role];
+function get_permissions(endpoint: any, role: string) {
+  const role_permissions = endpoint[role];
 
   if (
-    !rolePermissions ||
-    typeof rolePermissions !== "object" ||
-    Array.isArray(rolePermissions)
+    !role_permissions ||
+    typeof role_permissions !== "object" ||
+    Array.isArray(role_permissions)
   ) {
     return null;
   }
 
   return {
     allowed:
-      "allowed" in rolePermissions
-        ? rolePermissions.allowed
-        : "allow" in rolePermissions
-        ? rolePermissions.allow
+      "allowed" in role_permissions
+        ? role_permissions.allowed
+        : "allow" in role_permissions
+        ? role_permissions.allow
         : [],
 
     disallowed:
-      "disallowed" in rolePermissions
-        ? rolePermissions.disallowed ?? []
-        : "deny" in rolePermissions
-        ? rolePermissions.deny ?? []
+      "disallowed" in role_permissions
+        ? role_permissions.disallowed ?? []
+        : "deny" in role_permissions
+        ? role_permissions.deny ?? []
         : [],
   };
 }
 
-function resolveColRef(
-  colRef: string,
+function resolve_col_ref(
+  col_ref: string,
   default_table: string,
-  tableMap: Record<string, Record<string, any>>
+  table_map: Record<string, Record<string, any>>
 ) {
-  const parts = colRef.split(".");
+  const parts = col_ref.split(".");
 
   let table: string;
   let field: string;
@@ -788,16 +788,16 @@ function resolveColRef(
   } else if (parts.length === 1) {
     if (!default_table) {
       throw new Error(
-        `Column '${colRef}' missing table and no default_table provided`
+        `Column '${col_ref}' missing table and no default_table provided`
       );
     }
     table = default_table;
     field = parts[0];
   } else {
-    throw new Error(`Invalid $col format: '${colRef}'`);
+    throw new Error(`Invalid $col format: '${col_ref}'`);
   }
 
-  if (!tableMap[table] || !(field in tableMap[table])) {
+  if (!table_map[table] || !(field in table_map[table])) {
     throw new Error(`Field '${field}' does not exist on table '${table}'`);
   }
 
@@ -816,43 +816,43 @@ Compiler.prototype.resolve_data = function(fields: any): Record<string, any> | A
         return {};
     }
 
-    const normalizedBefore = Array.isArray(this.before_values)
+    const normalized_before = Array.isArray(this.before_values)
         ? this.before_values
         : this.before_values !== undefined
             ? [this.before_values]
             : [];
 
-    const normalizedAfter = Array.isArray(this.after_values)
+    const normalized_after = Array.isArray(this.after_values)
         ? this.after_values
         : this.after_values !== undefined
             ? [this.after_values]
             : [];
 
-    const normalizedResult = Array.isArray(this.result_values)
+    const normalized_result = Array.isArray(this.result_values)
         ? this.result_values
         : this.result_values !== undefined
             ? [this.result_values]
             : [];
 
-    const maxValues = Math.max(
-        normalizedBefore.length,
-        normalizedAfter.length,
-        normalizedResult.length,
+    const max_values = Math.max(
+        normalized_before.length,
+        normalized_after.length,
+        normalized_result.length,
         1
     );
 
     let results: Record<string, any>[] = Array.from(
-        { length: maxValues },
+        { length: max_values },
         () => ({})
     );
 
     for (const [entry, value] of Object.entries(fields)) {
-        const [rawTable, rawField] = entry.includes(".")
+        const [raw_table, raw_field] = entry.includes(".")
             ? entry.split(".")
             : [this.table_name, entry];
 
-        const table = rawTable;
-        const field = rawField;
+        const table = raw_table;
+        const field = raw_field;
 
         // schema validation
         if (!this.table_map[table] || !(field in this.table_map[table])) {
@@ -862,8 +862,8 @@ Compiler.prototype.resolve_data = function(fields: any): Record<string, any> | A
         }
 
         // endpoint + permissions
-        const endpoint = getEndpoint(this.structure, table, this.type);
-        const permissions = getPermissions(endpoint, this.role);
+        const endpoint = get_endpoint(this.structure, table, this.type);
+        const permissions = get_permissions(endpoint, this.role);
 
         if (!permissions) continue;
 
@@ -875,24 +875,24 @@ Compiler.prototype.resolve_data = function(fields: any): Record<string, any> | A
 
         // $col validation
         if (typeof value === "string" && value.startsWith("$col.")) {
-            const colRef = value.slice(5);
+            const col_ref = value.slice(5);
 
-            const { table: vTbl, field: vCol } = resolveColRef(
-                colRef,
+            const { table: v_tbl, field: v_col } = resolve_col_ref(
+                col_ref,
                 this.table_name,
                 this.table_map
             );
 
-            const vEndpoint = getEndpoint(this.structure, vTbl, this.type);
-            const vPermissions = getPermissions(vEndpoint, this.role);
+            const v_endpoint = get_endpoint(this.structure, v_tbl, this.type);
+            const v_permissions = get_permissions(v_endpoint, this.role);
 
-            if (!vPermissions) continue;
+            if (!v_permissions) continue;
 
             if (
                 !resolve_allowed_fields(
-                    vCol,
-                    vPermissions.allowed,
-                    vPermissions.disallowed
+                    v_col,
+                    v_permissions.allowed,
+                    v_permissions.disallowed
                 )
             ) {
                 continue;
@@ -901,22 +901,22 @@ Compiler.prototype.resolve_data = function(fields: any): Record<string, any> | A
 
 
         // Handle dynamic values
-        if (isDataRef(value, "before")) {
+        if (is_data_ref(value, "before")) {
             results = results.map((item, index) => ({
                 ...item,
-                [entry]: this.resolve_custom_value(value, normalizedBefore[index]) ?? null
+                [entry]: this.resolve_custom_value(value, normalized_before[index]) ?? null
             }));
 
-        } else if (isDataRef(value, "after")) {
+        } else if (is_data_ref(value, "after")) {
             results = results.map((item, index) => ({
                 ...item,
-                [entry]: this.resolve_custom_value(value, normalizedAfter[index]) ?? null
+                [entry]: this.resolve_custom_value(value, normalized_after[index]) ?? null
             }));
 
-        } else if (isDataRef(value, "result")) {
+        } else if (is_data_ref(value, "result")) {
             results = results.map((item, index) => ({
                 ...item,
-                [entry]: this.resolve_custom_value(value, normalizedResult[index]) ?? null
+                [entry]: this.resolve_custom_value(value, normalized_result[index]) ?? null
             }));
 
         } else {
@@ -935,11 +935,11 @@ Compiler.prototype.resolve_data = function(fields: any): Record<string, any> | A
 Compiler.prototype.requests_data = function(cond: WhereCondition, kind: string): boolean {
     return Object.entries(cond).some(([_, value]) => {
         if (typeof value === "string") {
-            return isDataRef(value, kind);
+            return is_data_ref(value, kind);
         }
 
         if (value && typeof value === "object") {
-            return checkObject(value, kind);
+            return check_object(value, kind);
         }
 
         return false;
@@ -959,7 +959,7 @@ Compiler.prototype.resolve_custom_value = function(
 
     if (!value) return value;
 
-    const resolvePath = (
+    const resolve_path = (
         source: Record<string, any> | undefined,
         key: string
     ) => {
@@ -994,38 +994,38 @@ Compiler.prototype.resolve_custom_value = function(
     let match = typeof value === "string" && value.match(/^\$col\.(.+)$/);
 
     if (match) {
-        const colRef = match[1];
+        const col_ref = match[1];
 
         if (!table_map) {
-            throw new Error(`tableMap is required to resolve $col`);
+            throw new Error(`table_map is required to resolve $col`);
         }
 
-        const parts = colRef.split(".");
+        const parts = col_ref.split(".");
 
-        let vTbl: string;
-        let vCol: string;
+        let v_tbl: string;
+        let v_col: string;
 
         if (parts.length === 2) {
-            [vTbl, vCol] = parts;
+            [v_tbl, v_col] = parts;
         } else if (parts.length === 1) {
             if (!table_name) {
                 throw new Error(
-                    `Column '${colRef}' missing table and no default_table_name provided`
+                    `Column '${col_ref}' missing table and no default_table_name provided`
                 );
             }
-            vTbl = table_name;
-            vCol = parts[0];
+            v_tbl = table_name;
+            v_col = parts[0];
         } else {
             throw new Error(`Invalid $col format: '${value}'`);
         }
 
-        const vColumn = table_map[vTbl]?.[vCol];
+        const v_column = table_map[v_tbl]?.[v_col];
 
-        if (!vColumn) {
-            throw new Error(`Column '${colRef}' not found`);
+        if (!v_column) {
+            throw new Error(`Column '${col_ref}' not found`);
         }
 
-        return vColumn;
+        return v_column;
     }
 
     // ------------------------
@@ -1048,14 +1048,14 @@ Compiler.prototype.resolve_custom_value = function(
 
     if (match) {
         const [, scope, key] = match;
-        const triggerValues = custom_value?.[TRIGGER_CUSTOM_VALUES] as
+        const trigger_values = custom_value?.[TRIGGER_CUSTOM_VALUES] as
             | Record<string, Record<string, any> | undefined>
             | undefined;
 
         const source =
             scope === "data"
                 ? (
-                    triggerValues?.data ??
+                    trigger_values?.data ??
                     (custom_value && !Array.isArray(custom_value)
                         ? custom_value
                         : undefined) ??
@@ -1064,13 +1064,13 @@ Compiler.prototype.resolve_custom_value = function(
                         : undefined)
                 )
                 : (
-                    triggerValues?.[scope] ??
+                    trigger_values?.[scope] ??
                     (custom_value && !Array.isArray(custom_value)
                         ? custom_value
                         : undefined)
                 );
 
-        const resolved = resolvePath(source, key);
+        const resolved = resolve_path(source, key);
 
         return resolved;
 

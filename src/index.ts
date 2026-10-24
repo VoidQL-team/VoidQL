@@ -17,7 +17,11 @@ import "./compiler/update.js";
 import "./compiler/delete.js";
 import "./compiler/triggers.js";
 
-function normalizeError(error: unknown): string {
+/* -------------------------------------------------------------------------- */
+/*                              PUBLIC API HANDLER                            */
+/* -------------------------------------------------------------------------- */
+
+function normalize_error(error: unknown): string {
     const value = error && typeof error === "object"
         ? error as Record<string, unknown>
         : undefined;
@@ -89,7 +93,7 @@ export class VoidQL {
                 } catch (err) {
                     return {
                         ok: false,
-                        error: normalizeError(err)
+                        error: normalize_error(err)
                     };
                 }
             }
@@ -139,7 +143,7 @@ export class VoidQL {
                                 await plan.execute()
                             );
                         } catch (err) {
-                            errors.push(normalizeError(err));
+                            errors.push(normalize_error(err));
                         }
                     }
 
@@ -177,7 +181,7 @@ export class VoidQL {
                     } catch (err) {
                         return {
                             ok: false,
-                            error: normalizeError(err)
+                            error: normalize_error(err)
                         };
                     }
                 }

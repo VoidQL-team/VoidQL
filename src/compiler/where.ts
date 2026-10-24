@@ -46,7 +46,7 @@ Compiler.prototype.build_where = function(cond: WhereCondition, custom_data?:Rec
   if(typeof cond == 'boolean') return { condition: cond, needs_table };
 
   if (cond && typeof cond === "object") {
-    const validateColRef = (value: any) => {
+    const validate_col_ref = (value: any) => {
       if (typeof value !== "string") return;
 
       const match = value.match(/^\$col\.(.+)$/);
@@ -68,10 +68,10 @@ Compiler.prototype.build_where = function(cond: WhereCondition, custom_data?:Rec
       needs_table = true;
     }
 
-    if ("value" in cond) validateColRef(cond.value);
-    if ("left_value" in cond) validateColRef(cond.left_value);
-    if ("start" in cond) validateColRef(cond.start);
-    if ("end" in cond) validateColRef(cond.end);
+    if ("value" in cond) validate_col_ref(cond.value);
+    if ("left_value" in cond) validate_col_ref(cond.left_value);
+    if ("start" in cond) validate_col_ref(cond.start);
+    if ("end" in cond) validate_col_ref(cond.end);
   }
   
   if ("and" in cond && cond.and) {
@@ -314,62 +314,62 @@ Compiler.prototype.if = function(cond: IfCondition): BuiltWhere {
 }
 
 Compiler.prototype.exists = function(cond: ExistsCondition) {
-  let subTable = null
+  let sub_table = null
   let fields:any = null
-  let subWhere = null
+  let sub_where = null
   const sub_query = cond.query
   if(sub_query) {
-    subTable = this.table_map[sub_query.from];
-    if (!subTable) throw new Error(`Table '${sub_query.from}' not found`);
+    sub_table = this.table_map[sub_query.from];
+    if (!sub_table) throw new Error(`Table '${sub_query.from}' not found`);
     fields = this.resolve_fields(sub_query.select, 'GET', sub_query.from);
     fields = this.alias_selected_fields(fields);
     if(!fields) throw new Error(`Inner fields not found`);
-    subWhere = sub_query.where
+    sub_where = sub_query.where
       ? this.build_where(sub_query.where).condition
       : undefined;
   }
-  let inner_query = this.db.select(fields).from(subTable)
-  if(subWhere) {
-    inner_query = inner_query.where(subWhere)
+  let inner_query = this.db.select(fields).from(sub_table)
+  if(sub_where) {
+    inner_query = inner_query.where(sub_where)
   }
   return exists(inner_query);
 }
 
 Compiler.prototype.not_exists = function(cond: NotExistsCondition) {
-  let subTable = null
+  let sub_table = null
   let fields:any = null
-  let subWhere = null
+  let sub_where = null
   const sub_query = cond.query
   if(sub_query) {
-    subTable = this.table_map[sub_query.from];
-    if (!subTable) throw new Error(`Table '${sub_query.from}' not found`);
+    sub_table = this.table_map[sub_query.from];
+    if (!sub_table) throw new Error(`Table '${sub_query.from}' not found`);
     fields = this.resolve_fields(sub_query.select, 'GET', sub_query.from);
     fields = this.alias_selected_fields(fields);
     if(!fields) throw new Error(`Inner fields not found`);
-    subWhere = sub_query.where
+    sub_where = sub_query.where
       ? this.build_where(sub_query.where).condition
       : undefined;
   }
-  let inner_query = this.db.select(fields).from(subTable)
-  if(subWhere) {
-    inner_query = inner_query.where(subWhere)
+  let inner_query = this.db.select(fields).from(sub_table)
+  if(sub_where) {
+    inner_query = inner_query.where(sub_where)
   }
   return notExists(inner_query);
 }
 
 Compiler.prototype.in_condition = function(left:any, right: any) {
   if (right != undefined && typeof right === "object" && "select" in right) {
-    const subTable = this.table_map[right.from];
-    if (!subTable) throw new Error(`Table '${right.from}' not found`);
+    const sub_table = this.table_map[right.from];
+    if (!sub_table) throw new Error(`Table '${right.from}' not found`);
     let fields = this.resolve_fields(right.select, 'GET', right.from);
     fields = this.alias_selected_fields(fields);
     if(!fields) throw new Error(`Inner fields not found`);
-    const subWhere = right.where
+    const sub_where = right.where
       ? this.build_where(right.where).condition
       : undefined;
-    let inner_query = this.db.select(fields).from(subTable)
-    if(subWhere) {
-      inner_query = inner_query.where(subWhere)
+    let inner_query = this.db.select(fields).from(sub_table)
+    if(sub_where) {
+      inner_query = inner_query.where(sub_where)
     }
     return inArray(left, inner_query);
   }
@@ -380,17 +380,17 @@ Compiler.prototype.in_condition = function(left:any, right: any) {
 
 Compiler.prototype.not_in_condition = function(left:any, right: any) {
   if (right != undefined && typeof right === "object" && "select" in right) {
-      const subTable = this.table_map[right.from];
-      if (!subTable) throw new Error(`Table '${right.from}' not found`);
+      const sub_table = this.table_map[right.from];
+      if (!sub_table) throw new Error(`Table '${right.from}' not found`);
       let fields = this.resolve_fields(right.select, 'GET', right.from);
       fields = this.alias_selected_fields(fields);
       if(!fields) throw new Error(`Inner fields not found`);
-      const subWhere = right.where
+      const sub_where = right.where
         ? this.build_where(right.where).condition
         : undefined;
-      let inner_query = this.db.select(fields).from(subTable)
-      if(subWhere) {
-        inner_query = inner_query.where(subWhere)
+      let inner_query = this.db.select(fields).from(sub_table)
+      if(sub_where) {
+        inner_query = inner_query.where(sub_where)
       }
       return notInArray(left, inner_query);
     }
@@ -445,33 +445,33 @@ Compiler.prototype.is_allowed_empty = function(allowed: FieldPermission) {
 }
 
 Compiler.prototype.build_acl_where = function(allowed: FieldPermission, disallowed: FieldPermission) {
-  let aclWhere: WhereCondition | null = null;
+  let acl_where: WhereCondition | null = null;
 
-  function injectIfExists(obj: any) {
+  function inject_if_exists(obj: any) {
      return obj && obj.where ? (obj.where as WhereCondition) : undefined;
   }
   
-  const allowedWhere = injectIfExists(allowed);
-  const disallowedWhere = injectIfExists(disallowed);
+  const allowed_where = inject_if_exists(allowed);
+  const disallowed_where = inject_if_exists(disallowed);
 
-  if (allowedWhere && disallowedWhere) {
-    aclWhere = {
+  if (allowed_where && disallowed_where) {
+    acl_where = {
       and: [
-        allowedWhere,
+        allowed_where,
         {
-          not: disallowedWhere
+          not: disallowed_where
         }
       ],
     };
-  } else if (allowedWhere) {
-    aclWhere = allowedWhere;
-  } else if (disallowedWhere) {
-    aclWhere = {
-      not: disallowedWhere
+  } else if (allowed_where) {
+    acl_where = allowed_where;
+  } else if (disallowed_where) {
+    acl_where = {
+      not: disallowed_where
     };
   }
 
-  return aclWhere;
+  return acl_where;
 }
 
 Compiler.prototype.compile_condition = function(
@@ -543,14 +543,14 @@ Compiler.prototype.validate_policy = async function() {
 }
 
 Compiler.prototype.define_where = function(allowed: FieldPermission, disallowed: FieldPermission) {
-  const aclWhere = this.build_acl_where(allowed, disallowed);
+  const acl_where = this.build_acl_where(allowed, disallowed);
 
-  if (this.where && aclWhere) {
+  if (this.where && acl_where) {
     this.where = {
-        and: [aclWhere, this.where]
+        and: [acl_where, this.where]
     };
-  } else if (aclWhere) {
-    this.where = aclWhere
+  } else if (acl_where) {
+    this.where = acl_where
   }
 
   if (this.where) {

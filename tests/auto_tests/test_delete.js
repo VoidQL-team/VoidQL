@@ -1,7 +1,7 @@
 import { expect } from "vitest";
 import { VoidQL } from "../../src";
 
-export default async function deleteTest(
+export default async function delete_test(
   db,
   structure,
   local_user,
@@ -9,7 +9,7 @@ export default async function deleteTest(
 ) {
   const email = `delete-${Date.now()}@example.com`;
 
-  const seedRow = {
+  const seed_row = {
     name: "Delete Me",
     surname: "Auto",
     email,
@@ -19,7 +19,7 @@ export default async function deleteTest(
 
   await db
     .insert(structure.users.table)
-    .values(seedRow)
+    .values(seed_row)
     .execute();
 
   const request = {

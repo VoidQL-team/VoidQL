@@ -1,7 +1,7 @@
 import { expect } from "vitest";
 import { VoidQL } from "../../src";
 
-export default async function selectIfCondition(
+export default async function select_if_condition(
   db,
   structure,
   local_user,

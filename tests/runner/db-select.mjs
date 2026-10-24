@@ -1,6 +1,6 @@
 import prompts from 'prompts';
 
-export const databaseMap = {
+export const database_map = {
   mysql: [
     { title: 'MySQL (Generic)', value: 'mysql' },
     { title: 'MySQL2', value: 'mysql2' },
@@ -48,7 +48,7 @@ export const databaseMap = {
   ],
 
   gel: [
-    { title: 'Gel Database', value: 'gel' },
+    { title: 'Gel database', value: 'gel' },
     { title: 'Gel JS', value: 'gel-js' }
   ],
 
@@ -64,13 +64,13 @@ export async function select() {
       console.clear();
       // Step 1: select family if undefined
       if (!family) {
-        const familyResp = await prompts(
+        const family_resp = await prompts(
             {
             type: 'select',
             name: 'family',
             message: 'Select database family',
             choices: [
-                ...Object.keys(databaseMap).map((key) => ({
+                ...Object.keys(database_map).map((key) => ({
                 title: key.toUpperCase(),
                 value: key
                 })),
@@ -85,22 +85,22 @@ export async function select() {
             }
         );
 
-        if (!familyResp.family) {
+        if (!family_resp.family) {
             console.error('No family selected');
             process.exit(1);
         }
 
-        family = familyResp.family;
+        family = family_resp.family;
       }
 
       // Step 2: select db with "< Previous" option
-      const dbResp = await prompts(
+      const db_resp = await prompts(
         {
             type: 'select',
             name: 'db',
             message: `Select ${family} implementation`,
             choices: [
-            ...databaseMap[family],
+            ...database_map[family],
             { title: '<', value: '__previous' }
             ]
         },
@@ -112,17 +112,17 @@ export async function select() {
         }
       );
 
-      if (!dbResp.db) {
+      if (!db_resp.db) {
         console.error('No database selected');
         process.exit(1);
       }
 
-      if (dbResp.db === '__previous') {
+      if (db_resp.db === '__previous') {
         family = undefined; // go back to family selection
         continue;
       }
 
-      db = dbResp.db;
+      db = db_resp.db;
     }
 
     return {db, family}

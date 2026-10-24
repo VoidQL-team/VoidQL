@@ -1,6 +1,10 @@
 import { getColumns, inArray } from "drizzle-orm";
 import { Compiler } from "./index.js";
 
+/* -------------------------------------------------------------------------- */
+/*                            INSERT QUERY COMPILER                           */
+/* -------------------------------------------------------------------------- */
+
 declare module "./index.js" {
     interface Compiler {
         insert():void;
@@ -24,10 +28,10 @@ Compiler.prototype.insert = function() {
       q.$returningId(fields);
       after_function = async (result:any) => {
         if(!result) return
-        const fieldName = Object.keys(result[0])[0];
+        const field_name = Object.keys(result[0])[0];
         const table:any = this.table
         const values = result.map((obj:any) => Object.values(obj)[0]);
-        const after = await this.db.select().from(table).where(inArray(table[fieldName], values)).execute()
+        const after = await this.db.select().from(table).where(inArray(table[field_name], values)).execute()
         return after
       }
     }else if (typeof q.output === 'function') {

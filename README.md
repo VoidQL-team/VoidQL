@@ -14,7 +14,24 @@ Instead of scattering authorization checks across controllers, services, and que
 
 </div>
 
-## 🚀 Get Started
+## Contents
+
+- [Get Started](#get-started)
+- [Why VoidQL?](#why-voidql)
+- [Key Features](#key-features)
+- [Comparison with Other Approaches](#comparison-with-other-approaches)
+- [Use Cases](#use-cases)
+- [VoidQL in Action](#voidql-in-action)
+- [Interactive Playground](#interactive-playground)
+- [Architecture](#architecture)
+- [Security Model](#security-model)
+- [Project Status and Roadmap](#project-status-and-roadmap)
+- [Documentation and Wiki](#documentation-and-wiki)
+- [Community and Feedback](#community-and-feedback)
+- [Who We Are](#who-we-are)
+- [License](#license)
+
+## Get Started
 
 Install VoidQL using npm:
 
@@ -22,7 +39,7 @@ Install VoidQL using npm:
 npm install @voidql/core
 ```
 
-## 🪐 Why VoidQL?
+## Why VoidQL?
 
 Authorization rarely remains a simple question of whether a user has a particular role. As applications grow, access decisions begin to depend on the operation, the records and fields involved, the existing data, the incoming payload, and the requested state transition.
 
@@ -30,7 +47,7 @@ These rules are often scattered across middleware, controllers, services, valida
 
 VoidQL centralizes complex authorization in one declarative policy layer and applies those policies while building the corresponding SQL operation. This keeps authorization logic consistent, maintainable, and directly connected to the data operation that ultimately executes.
 
-## ✦ Key Features
+## Key Features
 
 VoidQL centralizes authorization rules and applies them while building SQL operations. Its features cover the full flow—from determining whether an operation is permitted to controlling the query, validating the payload, and managing what happens before and after execution.
 
@@ -195,7 +212,7 @@ disallowed: ["id", "user_id"]
 
 This prevents unauthorized fields from being read or submitted while allowing different roles to access different parts of the same record.
 
-## ⚖️ Comparison with Other Approaches
+## Comparison with Other Approaches
 
 VoidQL combines authorization, payload validation, workflow rules, and SQL construction within the same declarative flow.
 
@@ -214,7 +231,7 @@ VoidQL combines authorization, payload validation, workflow rules, and SQL const
 | **SQL-level enforcement** | ✅ Authorization rules are compiled into the generated SQL | ✅ Permission rules are enforced through database queries |
 | **GUI / metadata tooling** | ⚠️ Coming in a future SaaS offering | ✅ Typically available through a management console |
 
-## 🎯 Use Cases
+## Use Cases
 
 VoidQL is a good fit for TypeScript backends where authorization depends on roles, data, incoming payloads, or workflow state.
 
@@ -227,13 +244,13 @@ Common use cases include:
 - **User-owned resources** — Limit users to their own data while allowing broader administrator access
 - **Dynamic data APIs** — Build authorized SQL operations with joins, filters, ordering, and grouping
 
-## 🚀 VoidQL in Action
+## VoidQL in Action
 
 ### Request Structure
 
 VoidQL accepts a `Request` object that describes the database operation or sequence of operations to execute.
 
-#### Request type
+#### Request Type
 
 A request can be either:
 
@@ -252,7 +269,7 @@ export type QueryPhase = {
 - `QUERY` runs each query independently, outside a shared transaction, and returns all results.
 - `TRANSACTION` runs all queries in the phase within a single database transaction, so they succeed or fail together.
 
-#### `StructuredQuery` shape
+#### `StructuredQuery` Shape
 
 ```ts
 export type StructuredQuery = {
@@ -281,7 +298,7 @@ Field meanings:
 - `returning` — columns to return after mutating rows.
 - `limit` — maximum number of rows to affect or return, depending on the operation.
 
-#### Join definition
+#### Join Definition
 
 ```ts
 export type Join = {
@@ -299,7 +316,7 @@ The `on` clause can be either a simple column mapping, such as:
 
 or a more complex `WhereCondition`.
 
-#### Where condition types
+#### Where Condition Types
 
 VoidQL supports rich condition expressions.
 
@@ -427,7 +444,7 @@ Supported operators include:
 }
 ```
 
-## 🧪 Interactive Playground
+## Interactive Playground
 
 Experiment with VoidQL directly in your browser.
 
@@ -441,7 +458,7 @@ Use the playground to:
 
 **[Open the Interactive Playground →](https://demo.voidql.dev/)**
 
-## ⚙️ Architecture
+## Architecture
 
 <div align="center">
   <img src="voidql-flow.svg" alt="Structured API request flows through the policy handler and SQL query builder to the database" width="100%" />
@@ -456,7 +473,7 @@ The handler:
 5. Generates the final SQL query.
 6. Executes the query safely.
 
-## 🔒 Security Model
+## Security Model
 
 - Database operations handled by VoidQL are compiled through policy rules.
 - Field access is explicitly controlled.
@@ -465,7 +482,7 @@ The handler:
 
 Security relies on all database access going through the VoidQL handler, with no raw SQL or direct database access bypass routes.
 
-## 🗺️ Project Status and Roadmap
+## Project Status and Roadmap
 
 VoidQL is currently under active development.
 
@@ -499,7 +516,7 @@ The planned subscription model includes:
 
 - **Database:** `Triggers and returning`
 
-## 📚 Documentation and Wiki
+## Documentation and Wiki
 
 For detailed guides, configuration references, and advanced examples, visit the [VoidQL Wiki](../../wiki).
 
@@ -512,7 +529,7 @@ The documentation includes:
 - API reference
 - Advanced examples and troubleshooting
 
-## 💬 Community and Feedback
+## Community and Feedback
 
 We welcome feedback on:
 
@@ -523,7 +540,7 @@ We welcome feedback on:
 
 Share your feedback through [GitHub Discussions](../../discussions) or report issues through [GitHub Issues](../../issues). Your input will help shape VoidQL's future development.
 
-## 👥 Who We Are
+## Who We Are
 
 We are a team of three:
 
@@ -532,6 +549,6 @@ We are a team of three:
 
 Together, we aim to simplify complex backend challenges by building solutions that are secure, scalable, and easy to integrate. 
 
-## 📄 License
+## License
 
 VoidQL is released under the [MIT License](LICENSE). It is fully open source and may be used, modified, and self-hosted in accordance with the license terms.
