@@ -36,6 +36,8 @@ import { MySqlDatabase, MySqlTable, MySqlTransaction } from "drizzle-orm/mysql-c
 import { SingleStoreTable, SingleStoreTransaction } from "drizzle-orm/singlestore-core";
 import { Trigger } from "./compiler/triggers.js";
 
+export const TRIGGER_CUSTOM_VALUES = "$trigger_values";
+
 /* -------------------------------------------------------------------------- */
 /*                               DATABASE TYPES                               */
 /* -------------------------------------------------------------------------- */
@@ -136,7 +138,7 @@ export type SetValue = {
 export type EndpointType = "GET" | "PUT" | "POST" | "DELETE";
 export type TriggerQuery =
 	| SetValue
-	| IfCondition & SetValue
+	| IfCondition
 	| StructuredQuery;
 
 export type TriggerStructure = {

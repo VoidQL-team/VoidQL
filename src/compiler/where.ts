@@ -20,6 +20,8 @@ declare module "./index.js" {
     not_in_condition(left:any, right:any): any;
     check_passed(cond: WhereCondition, value:any): SQL | null;
     sanitize_undefined(value:any): null | any;
+    compile_condition(condition: WhereCondition, custom_data?: Record<string, any>): any;
+    compile_condition_query(condition: any, needs_table: boolean): any;
     build_acl_where(allowed:FieldPermission, disallowed:FieldPermission): WhereCondition | null;
     compile_policy(): WhereCondition | boolean;
     validate_policy(): Promise<void>
@@ -472,12 +474,21 @@ Compiler.prototype.build_acl_where = function(allowed: FieldPermission, disallow
   return aclWhere;
 }
 
-Compiler.prototype.compile_policy = function() {
-  if(typeof this.where == "boolean" || this.where == undefined) {
-    return this.where ?? false
-  }
-  const { condition: where, needs_table } = this.build_where(this.where);
+Compiler.prototype.compile_condition = function(
+  condition: WhereCondition,
+  custom_data?: Record<string, any>,
+) {
+  const built = this.build_where(condition, custom_data);
+  return {
+    query: this.compile_condition_query(built.condition, built.needs_table),
+    condition: built.condition,
+  };
+}
 
+Compiler.prototype.compile_condition_query = function(
+  where: any,
+  needs_table: boolean,
+) {
   // Start empty SQL object
   const need_table = this.query.join ? true : needs_table
   
@@ -499,14 +510,22 @@ Compiler.prototype.compile_policy = function() {
   if(this.query.join) this.build_join(builded_query, this.query.join)
 
   builded_query.limit(1)
-  console.log(builded_query.toSQL().sql, builded_query.toSQL().params)
+  return builded_query;
+}
+
+Compiler.prototype.compile_policy = function() {
+  if(typeof this.where == "boolean" || this.where == undefined) {
+    return this.where ?? false
+  }
+
+  const { query, condition } = this.compile_condition(this.where);
 
   this.compiled = {
     ...this.compiled,
-    policy: builded_query
+    policy: query
   }
 
-  return where
+  return condition
 }
 
 Compiler.prototype.validate_policy = async function() {

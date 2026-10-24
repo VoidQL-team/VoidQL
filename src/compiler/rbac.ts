@@ -1,7 +1,7 @@
 import { avg, avgDistinct, count, countDistinct, max, min, sum, sumDistinct } from "drizzle-orm";
 import { asc, desc } from "drizzle-orm";
 import { Compiler } from "./index.js";
-import { WhereCondition, StructuredQuery, type FieldPermission, type SubqueryCondition, Structure, SimpleCondition, ExistsCondition, NotExistsCondition, BetweenCondition, NotBetweenCondition, Table } from "../types.js";
+import { WhereCondition, StructuredQuery, type FieldPermission, type SubqueryCondition, Structure, SimpleCondition, ExistsCondition, NotExistsCondition, BetweenCondition, NotBetweenCondition, Table, TRIGGER_CUSTOM_VALUES } from "../types.js";
 
 type CustomValueContext = {
     user: any;
@@ -1048,10 +1048,14 @@ Compiler.prototype.resolve_custom_value = function(
 
     if (match) {
         const [, scope, key] = match;
+        const triggerValues = custom_value?.[TRIGGER_CUSTOM_VALUES] as
+            | Record<string, Record<string, any> | undefined>
+            | undefined;
 
         const source =
             scope === "data"
                 ? (
+                    triggerValues?.data ??
                     (custom_value && !Array.isArray(custom_value)
                         ? custom_value
                         : undefined) ??
@@ -1060,9 +1064,10 @@ Compiler.prototype.resolve_custom_value = function(
                         : undefined)
                 )
                 : (
-                    custom_value && !Array.isArray(custom_value)
+                    triggerValues?.[scope] ??
+                    (custom_value && !Array.isArray(custom_value)
                         ? custom_value
-                        : undefined
+                        : undefined)
                 );
 
         const resolved = resolvePath(source, key);
