@@ -47,17 +47,18 @@ type TriggerContext = {
 };
 
 export class Trigger {
+  private action: ()=> Promise<any[] | undefined | void>;
   constructor(
     private readonly definition: TriggerStructure,
     private readonly context: TriggerContext,
-  ) {}
-
-  async execute(type: "before_triggers" | "after_triggers", values: TriggerValues): Promise<void> {
+    type: "before_triggers" | "after_triggers", 
+    values: TriggerValues
+  ) {
     const query = this.definition.query;
 
     if ("if" in query) {
       const condition = query.if;
-      const shouldRun = await if_condition(
+      const shouldRun = if_condition(
         this.context.db,
         condition.when,
         this.context.tableMap,
@@ -71,19 +72,25 @@ export class Trigger {
         values.result,
       );
       const action = shouldRun ? condition.do : condition.else;
-      await this.executeAction(action, values);
+      this.action = async ()=> await this.executeAction(action, values)
     }
 
     if ("set" in query) {
       if (type === "after_triggers") {
         throw new Error("Set triggers are only available before the query");
       }
-      this.applySet(query.set);
+      this.action = async ()=> this.applySet(query.set)
     }
 
     if ("type" in query) {
-      await this.context.buildQuery(query, values).execute();
+      this.action = async ()=> await this.context.buildQuery(query, values).execute()
     }
+
+    this.action = async ()=>{}
+  }
+
+  async execute(): Promise<any[] | undefined | void> {
+    return await this.action()
   }
 
   private async executeAction(
@@ -129,6 +136,43 @@ export class Trigger {
       `;
     }
   }
+
+  private async if_condition(db:Database | Transaction, where_condtion:WhereCondition, table_map:any, user:any, role: string, structure: Structure, query:StructuredQuery, default_table:any, before_values?:any | any[], after_values?:any | any[], result_values?:any | any[]):Promise<boolean> {
+    if(typeof where_condtion == "boolean") {
+      return where_condtion
+    }
+    let where = await buildWhere(db, where_condtion, table_map, user, role, structure, query, default_table, getTableName(default_table), undefined, before_values, after_values, result_values);
+
+    // Start empty SQL object
+    const need_table:boolean = query.join ? true : has_field_or_col_attribute(where_condtion)
+    
+    const check_query = sql<number>`
+      COALESCE(
+        MAX(
+          CASE WHEN ${where} THEN 1 ELSE 0 END
+        ),
+        0
+      ) AS result
+    `;
+
+    const from_table = need_table ? default_table : sql`(select 1) AS t`
+
+    const builded_query = db.select({
+      result: check_query
+    }).from(from_table)
+
+    if(query.join) await buildJoin(db, builded_query, query.join, table_map, user, role, structure, query, from_table, before_values, after_values, result_values)
+
+    builded_query.limit(1)
+    console.log(builded_query.toSQL().sql, builded_query.toSQL().params)
+    const [rows]: any = await builded_query.execute()
+
+    console.log(rows)
+    const result = rows.result ?? 0;
+
+    // Return as boolean
+    return Boolean(result);
+  }
 }
 
 declare module "./index.js" {
@@ -161,7 +205,12 @@ Compiler.prototype.execute_triggers = async function(
   type: "before_triggers" | "after_triggers",
   values: TriggerValues = {},
 ) {
-  await this.build_triggers(type, values);
+  if(this.compiled && this.compiled[type]) {
+    const triggers = this.compiled[type]
+    for(const trigger of triggers) {
+      await trigger.execute()
+    }
+  }
 };
 
 Compiler.prototype.handle_after = async function(result: any): Promise<{ after: any; result: any }> {
@@ -242,6 +291,9 @@ Compiler.prototype.build_triggers = async function(
   };
 
   for (const trigger of triggers) {
-    await new Trigger(trigger, context).execute(type, values);
+    this.compiled = {
+      ...this.compiled,
+      [type]: new Trigger(trigger, context, type, values)
+    }
   }
 };

@@ -9,23 +9,23 @@ type BuiltWhere = {
 };
 
 declare module "./index.js" {
-    interface Compiler {
-        build_where(cond: WhereCondition, custom_data?:Record<string, any>): BuiltWhere;
-        and(conditions:any[]): any;
-        or(conditions:any[]): any;
-        if(condition: IfCondition): BuiltWhere;
-        exists(condition: ExistsCondition): any;
-        not_exists(condition: NotExistsCondition): any;
-        in_condition(left:any, right:any): any;
-        not_in_condition(left:any, right:any): any;
-        check_passed(cond: WhereCondition, value:any): SQL | null;
-        sanitize_undefined(value:any): null | any;
-        build_acl_where(allowed:FieldPermission, disallowed:FieldPermission): WhereCondition | null;
-        compile_policy(): WhereCondition | boolean;
-        validate_policy(): Promise<void>
-        define_where(allowed:FieldPermission, disallowed:FieldPermission): void;
-        is_allowed_empty(allowed: FieldPermission): boolean;
-    }
+  interface Compiler {
+    build_where(cond: WhereCondition, custom_data?:Record<string, any>): BuiltWhere;
+    and(conditions:any[]): any;
+    or(conditions:any[]): any;
+    if(condition: IfCondition): BuiltWhere;
+    exists(condition: ExistsCondition): any;
+    not_exists(condition: NotExistsCondition): any;
+    in_condition(left:any, right:any): any;
+    not_in_condition(left:any, right:any): any;
+    check_passed(cond: WhereCondition, value:any): SQL | null;
+    sanitize_undefined(value:any): null | any;
+    build_acl_where(allowed:FieldPermission, disallowed:FieldPermission): WhereCondition | null;
+    compile_policy(): WhereCondition | boolean;
+    validate_policy(): Promise<void>
+    define_where(allowed:FieldPermission, disallowed:FieldPermission): void;
+    is_allowed_empty(allowed: FieldPermission): boolean;
+  }
 }
 
 /* -------------------------------------------------------------------------- */

@@ -34,6 +34,7 @@ import { BaseSQLiteDatabase, SQLiteTable } from "drizzle-orm/sqlite-core";
 import { ExpoSQLiteDatabase, ExpoSQLiteTransaction } from "drizzle-orm/expo-sqlite";
 import { MySqlDatabase, MySqlTable, MySqlTransaction } from "drizzle-orm/mysql-core";
 import { SingleStoreTable, SingleStoreTransaction } from "drizzle-orm/singlestore-core";
+import { Trigger } from "./compiler/triggers.js";
 
 /* -------------------------------------------------------------------------- */
 /*                               DATABASE TYPES                               */
@@ -443,8 +444,8 @@ export type Compiled = {
   before?: any,
   where?:any,
   after_function?: Function,
-  before_triggers?: any[],
-  after_triggers?: any[]
+  before_triggers?: Trigger[],
+  after_triggers?: Trigger[]
 }
 
 /* -------------------------------------------------------------------------- */
